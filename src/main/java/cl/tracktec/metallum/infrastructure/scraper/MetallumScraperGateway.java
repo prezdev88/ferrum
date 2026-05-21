@@ -341,13 +341,24 @@ public class MetallumScraperGateway implements BandSearchGateway {
                 Elements cols = row.select("td");
                 if (cols.size() < 2) continue;
                 String num        = cols.get(0).text().trim();
-                String trackTitle = cols.get(1).ownText().trim();
-                String duration   = cols.last().text().trim();
+                String trackTitle = extractTrackTitle(cols.get(1));
+                String duration   = cols.size() >= 3 ? cols.get(2).text().trim() : "";
                 if (num.isBlank() || trackTitle.isBlank()) continue;
                 tracks.add(new AlbumDetail.TrackEntry(num, trackTitle, duration));
             }
         }
 
         return new AlbumDetail(title, type, releaseDate, label, albumUrl, tracks);
+    }
+
+    private String extractTrackTitle(Element titleCell) {
+        Element cleanedCell = titleCell.clone();
+        cleanedCell.select(".lyricsButton, a[title*=lyrics], a[href*=lyrics], span[id*=lyrics]").remove();
+
+        String trackTitle = cleanedCell.text().trim();
+        if (trackTitle.endsWith("Show Lyrics")) {
+            trackTitle = trackTitle.substring(0, trackTitle.length() - "Show Lyrics".length()).trim();
+        }
+        return trackTitle;
     }
 }

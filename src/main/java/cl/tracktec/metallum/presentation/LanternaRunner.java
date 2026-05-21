@@ -294,7 +294,7 @@ public class LanternaRunner implements MetallumUi {
 
         try {
             AlbumDetail detail = getAlbumDetails.execute(selectableAlbums.get(index).url());
-            showTextWindow("Album", formatAlbumDetails(detail), new TerminalSize(90, 28));
+            showAlbumWindow(detail);
         } catch (RuntimeException e) {
             showError("Error al cargar album", e.getMessage());
         }
@@ -329,30 +329,6 @@ public class LanternaRunner implements MetallumUi {
         return builder.toString();
     }
 
-    private String formatAlbumDetails(AlbumDetail detail) {
-        StringBuilder builder = new StringBuilder();
-        appendLine(builder, detail.title());
-        appendField(builder, "Tipo", detail.type());
-        appendField(builder, "Fecha", detail.releaseDate());
-        appendField(builder, "Sello", detail.label());
-        appendField(builder, "URL", detail.url());
-
-        if (!detail.tracks().isEmpty()) {
-            builder.append(System.lineSeparator()).append("Tracklist").append(System.lineSeparator());
-            for (AlbumDetail.TrackEntry track : detail.tracks()) {
-                builder.append(track.number())
-                        .append(" ")
-                        .append(track.title());
-                if (!track.duration().isBlank()) {
-                    builder.append(" [").append(track.duration()).append("]");
-                }
-                builder.append(System.lineSeparator());
-            }
-        }
-
-        return builder.toString();
-    }
-
     private void appendField(StringBuilder builder, String label, String value) {
         if (value == null || value.isBlank()) {
             return;
@@ -381,6 +357,34 @@ public class LanternaRunner implements MetallumUi {
         TextBox contentBox = createReadOnlyTextBox(size);
         contentBox.setText(content);
         panel.addComponent(contentBox.withBorder(Borders.singleLine(title)));
+        panel.addComponent(new Button("Cerrar", detailWindow::close));
+
+        detailWindow.setComponent(panel);
+        gui.addWindowAndWait(detailWindow);
+    }
+
+    private void showAlbumWindow(AlbumDetail detail) {
+        BasicWindow detailWindow = new BasicWindow("Album");
+        detailWindow.setHints(List.of(Window.Hint.MODAL, Window.Hint.CENTERED));
+        detailWindow.setCloseWindowWithEscape(true);
+
+        Panel panel = new Panel(new LinearLayout(Direction.VERTICAL));
+        panel.addComponent(new Label(detail.title()).addStyle(SGR.BOLD));
+        panel.addComponent(new Label("Tipo: " + detail.type()));
+        panel.addComponent(new Label("Fecha: " + detail.releaseDate()));
+        panel.addComponent(new Label("Sello: " + detail.label()));
+        panel.addComponent(new Label("URL: " + detail.url()));
+
+        Table<String> tracksTable = new Table<>("#", "Titulo", "Duracion");
+        for (AlbumDetail.TrackEntry track : detail.tracks()) {
+            tracksTable.getTableModel().addRow(
+                    track.number(),
+                    track.title(),
+                    track.duration().isBlank() ? "-" : track.duration()
+            );
+        }
+
+        panel.addComponent(tracksTable.withBorder(Borders.singleLine("Tracklist")));
         panel.addComponent(new Button("Cerrar", detailWindow::close));
 
         detailWindow.setComponent(panel);
