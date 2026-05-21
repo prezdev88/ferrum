@@ -217,8 +217,8 @@ public class MetallumScraperGateway implements BandSearchGateway {
         if (aaData != null && aaData.isArray()) {
             for (JsonNode row : aaData) {
                 String nameHtml   = row.get(0).asText();
-                String country    = Jsoup.parse(row.get(1).asText()).text();
-                String genre      = Jsoup.parse(row.get(2).asText()).text();
+                String genre      = Jsoup.parse(row.get(1).asText()).text();
+                String country    = Jsoup.parse(row.get(2).asText()).text();
                 String status     = row.size() > 3
                         ? Jsoup.parse(row.get(3).asText()).text() : "";
 

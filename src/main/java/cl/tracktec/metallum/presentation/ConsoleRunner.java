@@ -6,14 +6,15 @@ import cl.tracktec.metallum.core.domain.BandSummary;
 import cl.tracktec.metallum.core.usecase.GetAlbumDetailsUseCase;
 import cl.tracktec.metallum.core.usecase.GetBandDetailsUseCase;
 import cl.tracktec.metallum.core.usecase.SearchBandsUseCase;
-import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Scanner;
 
 @Component
-public class ConsoleRunner implements CommandLineRunner {
+@ConditionalOnProperty(prefix = "metallum.ui", name = "type", havingValue = "console")
+public class ConsoleRunner implements MetallumUi {
 
     private static final String RESET   = "[0m";
     private static final String BOLD    = "[1m";

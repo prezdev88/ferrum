@@ -1,0 +1,25 @@
+{
+  "properties": [
+    {
+      "name": "metallum.ui.type",
+      "type": "java.lang.String",
+      "description": "Selecciona la implementacion de interfaz de usuario de Metallum.",
+      "defaultValue": "lanterna"
+    }
+  ],
+  "hints": [
+    {
+      "name": "metallum.ui.type",
+      "values": [
+        {
+          "value": "lanterna",
+          "description": "Usa la interfaz TUI basada en Lanterna."
+        },
+        {
+          "value": "console",
+          "description": "Usa la interfaz de consola clasica."
+        }
+      ]
+    }
+  ]
+}
