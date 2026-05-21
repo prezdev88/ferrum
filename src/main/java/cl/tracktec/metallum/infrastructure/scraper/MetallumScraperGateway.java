@@ -2,6 +2,7 @@ package cl.tracktec.metallum.infrastructure.scraper;
 
 import cl.tracktec.metallum.core.domain.AlbumDetail;
 import cl.tracktec.metallum.core.domain.BandDetail;
+import cl.tracktec.metallum.core.domain.BandSearchType;
 import cl.tracktec.metallum.core.domain.BandSummary;
 import cl.tracktec.metallum.core.port.BandSearchGateway;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -33,7 +34,7 @@ public class MetallumScraperGateway implements BandSearchGateway {
 
     private static final String BASE_URL   = "https://www.metal-archives.com/";
     private static final String SEARCH_URL = BASE_URL +
-            "search?searchString=%s&type=band_name";
+            "search?searchString=%s&type=%s";
 
     private static final Path SESSION_FILE =
             Path.of(System.getProperty("user.home"), ".config", "metallum", "session.json");
@@ -155,10 +156,13 @@ public class MetallumScraperGateway implements BandSearchGateway {
     // ── BandSearchGateway ─────────────────────────────────────────────────────
 
     @Override
-    public List<BandSummary> searchByName(String name) {
+    public List<BandSummary> search(String query, BandSearchType searchType) {
         try {
-            String searchPageUrl = String.format(SEARCH_URL,
-                    URLEncoder.encode(name, StandardCharsets.UTF_8));
+            String searchPageUrl = String.format(
+                    SEARCH_URL,
+                    URLEncoder.encode(query, StandardCharsets.UTF_8),
+                    searchType.getRequestType()
+            );
 
             /*
              * Navegar a la página de búsqueda y capturar la respuesta AJAX
@@ -166,12 +170,12 @@ public class MetallumScraperGateway implements BandSearchGateway {
              * cookies y cabeceras por sí solo — no los falsificamos nosotros.
              */
             Response ajaxResponse = page.waitForResponse(
-                    r -> r.url().contains("ajax-band-search") && r.status() == 200,
+                    r -> r.url().contains("ajax") && r.status() == 200,
                     () -> page.navigate(searchPageUrl,
                             new Page.NavigateOptions().setWaitUntil(WaitUntilState.DOMCONTENTLOADED))
             );
 
-            return parseSearchResults(ajaxResponse.text());
+            return parseSearchResults(ajaxResponse.text(), searchType);
 
         } catch (TimeoutError e) {
             return new ArrayList<>();
@@ -209,27 +213,60 @@ public class MetallumScraperGateway implements BandSearchGateway {
 
     // ── parsers ───────────────────────────────────────────────────────────────
 
-    private List<BandSummary> parseSearchResults(String json) throws IOException {
+    private List<BandSummary> parseSearchResults(String json, BandSearchType searchType) throws IOException {
         JsonNode root   = objectMapper.readTree(json);
         JsonNode aaData = root.get("aaData");
         List<BandSummary> results = new ArrayList<>();
 
         if (aaData != null && aaData.isArray()) {
             for (JsonNode row : aaData) {
-                String nameHtml   = row.get(0).asText();
-                String genre      = Jsoup.parse(row.get(1).asText()).text();
-                String country    = Jsoup.parse(row.get(2).asText()).text();
-                String status     = row.size() > 3
-                        ? Jsoup.parse(row.get(3).asText()).text() : "";
-
-                Element anchor    = Jsoup.parse(nameHtml).selectFirst("a");
-                String bandName   = anchor != null ? anchor.text() : Jsoup.parse(nameHtml).text();
-                String url        = anchor != null ? anchor.attr("href") : "";
-
-                results.add(new BandSummary(bandName, country, genre, status, url));
+                results.add(parseSearchResultRow(row, searchType));
             }
         }
         return results;
+    }
+
+    private BandSummary parseSearchResultRow(JsonNode row, BandSearchType searchType) {
+        List<String> columnTexts = new ArrayList<>();
+        Element bandAnchor = null;
+
+        for (JsonNode column : row) {
+            String html = column.asText();
+            Document columnDoc = Jsoup.parseBodyFragment(html);
+            columnTexts.add(columnDoc.text().trim());
+
+            if (bandAnchor == null) {
+                bandAnchor = columnDoc.selectFirst("a[href*=/bands/]");
+            }
+        }
+
+        String name = bandAnchor != null
+                ? bandAnchor.text().trim()
+                : getColumnText(columnTexts, 0);
+        String profileUrl = bandAnchor != null
+                ? bandAnchor.attr("href")
+                : "";
+
+        if (searchType == BandSearchType.BAND_NAME
+                || searchType == BandSearchType.MUSIC_GENRE
+                || searchType == BandSearchType.THEMES) {
+            String genre = getColumnText(columnTexts, 1);
+            String country = getColumnText(columnTexts, 2);
+            String status = getColumnText(columnTexts, 3);
+            return new BandSummary(name, country, genre, status, profileUrl);
+        }
+
+        return new BandSummary(
+                name,
+                getColumnText(columnTexts, 1),
+                getColumnText(columnTexts, 2),
+                getColumnText(columnTexts, 3),
+                profileUrl
+        );
+    }
+
+    private String getColumnText(List<String> columnTexts, int index) {
+        return index < columnTexts.size() ? columnTexts.get(index) : "";
     }
 
     private BandDetail parseDetails(String html, String profileUrl) {

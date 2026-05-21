@@ -2,6 +2,7 @@ package cl.tracktec.metallum.presentation;
 
 import cl.tracktec.metallum.core.domain.AlbumDetail;
 import cl.tracktec.metallum.core.domain.BandDetail;
+import cl.tracktec.metallum.core.domain.BandSearchType;
 import cl.tracktec.metallum.core.domain.BandSummary;
 import cl.tracktec.metallum.core.usecase.GetAlbumDetailsUseCase;
 import cl.tracktec.metallum.core.usecase.GetBandDetailsUseCase;
@@ -12,6 +13,7 @@ import com.googlecode.lanterna.TextColor;
 import com.googlecode.lanterna.gui2.BasicWindow;
 import com.googlecode.lanterna.gui2.Borders;
 import com.googlecode.lanterna.gui2.Button;
+import com.googlecode.lanterna.gui2.ComboBox;
 import com.googlecode.lanterna.gui2.Direction;
 import com.googlecode.lanterna.gui2.GridLayout;
 import com.googlecode.lanterna.gui2.Label;
@@ -58,6 +60,7 @@ public class LanternaRunner implements MetallumUi {
     private MultiWindowTextGUI gui;
     private BasicWindow window;
     private TextBox queryBox;
+    private ComboBox<BandSearchType> searchTypeBox;
     private Table<String> resultsTable;
     private Table<String> albumsTable;
     private boolean exitRequested;
@@ -136,7 +139,7 @@ public class LanternaRunner implements MetallumUi {
     }
 
     private Panel createSearchPanel() {
-        Panel searchPanel = new Panel(new GridLayout(4));
+        Panel searchPanel = new Panel(new GridLayout(3));
         searchPanel.setLayoutData(LinearLayout.createLayoutData(LinearLayout.Alignment.Fill));
         searchPanel.addComponent(new Label("Buscar banda:"));
 
@@ -153,8 +156,11 @@ public class LanternaRunner implements MetallumUi {
         queryBox.setLayoutData(GridLayout.createHorizontallyFilledLayoutData(1));
         searchPanel.addComponent(queryBox);
 
-        searchPanel.addComponent(new Button("Buscar", this::search));
-        searchPanel.addComponent(new Button("Salir (F4)", this::requestApplicationClose));
+        searchTypeBox = new ComboBox<>(BandSearchType.values());
+        searchTypeBox.setReadOnly(true);
+        searchTypeBox.setDropDownNumberOfRows(BandSearchType.values().length);
+        searchTypeBox.setSelectedItem(BandSearchType.BAND_NAME);
+        searchPanel.addComponent(searchTypeBox);
 
         Panel wrapper = new Panel(new LinearLayout(Direction.VERTICAL));
         wrapper.addComponent(searchPanel.withBorder(Borders.singleLine("Busqueda")));
@@ -162,12 +168,11 @@ public class LanternaRunner implements MetallumUi {
     }
 
     private Panel createResultsPanel() {
-        resultsTable = new Table<>("#", "Banda", "Pais", "Genero", "Estado");
+        resultsTable = new Table<>("#", "Resultado", "Dato 1", "Dato 2", "Dato 3");
         resultsTable.setSelectAction(this::loadSelectedBand);
 
         Panel panel = new Panel(new LinearLayout(Direction.VERTICAL));
         panel.addComponent(resultsTable.withBorder(Borders.singleLine("Resultados")));
-        panel.addComponent(new Button("Ver banda seleccionada", this::loadSelectedBand));
         return panel;
     }
 
@@ -176,11 +181,6 @@ public class LanternaRunner implements MetallumUi {
         albumsTable = new Table<>("#", "Ano", "Titulo", "Tipo");
         albumsTable.setSelectAction(this::loadSelectedAlbum);
         details.addComponent(albumsTable.withBorder(Borders.singleLine("Discografia")));
-
-        Panel actions = new Panel(new GridLayout(2));
-        actions.addComponent(new Button("Ver banda en ventana", this::showSelectedBandWindow));
-        actions.addComponent(new Button("Ver album en ventana", this::loadSelectedAlbum));
-        details.addComponent(actions);
         return details;
     }
 
@@ -212,7 +212,7 @@ public class LanternaRunner implements MetallumUi {
 
         try {
             searchResults.clear();
-            searchResults.addAll(searchBands.execute(query));
+            searchResults.addAll(searchBands.execute(query, searchTypeBox.getSelectedItem()));
             refreshResultsTable();
             clearBandDetails();
 
@@ -312,14 +312,6 @@ public class LanternaRunner implements MetallumUi {
         selectedBandDetail = null;
         selectableAlbums.clear();
         albumsTable.getTableModel().clear();
-    }
-
-    private void showSelectedBandWindow() {
-        if (selectedBandDetail == null) {
-            showInfo("Banda", "Selecciona una banda y cargala primero.");
-            return;
-        }
-        showTextWindow("Banda", formatBandDetails(selectedBandDetail), new TerminalSize(90, 24));
     }
 
     private String formatBandDetails(BandDetail detail) {

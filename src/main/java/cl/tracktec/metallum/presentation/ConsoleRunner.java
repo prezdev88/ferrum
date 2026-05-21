@@ -2,6 +2,7 @@ package cl.tracktec.metallum.presentation;
 
 import cl.tracktec.metallum.core.domain.AlbumDetail;
 import cl.tracktec.metallum.core.domain.BandDetail;
+import cl.tracktec.metallum.core.domain.BandSearchType;
 import cl.tracktec.metallum.core.domain.BandSummary;
 import cl.tracktec.metallum.core.usecase.GetAlbumDetailsUseCase;
 import cl.tracktec.metallum.core.usecase.GetBandDetailsUseCase;
@@ -61,7 +62,7 @@ public class ConsoleRunner implements MetallumUi {
 
             List<BandSummary> results;
             try {
-                results = searchBands.execute(query);
+                results = searchBands.execute(query, BandSearchType.BAND_NAME);
             } catch (RuntimeException e) {
                 System.out.println(RED + "Error: " + e.getMessage() + RESET);
                 continue;
