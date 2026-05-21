@@ -5,6 +5,12 @@
       "type": "java.lang.String",
       "description": "Selecciona la implementacion de interfaz de usuario de Metallum.",
       "defaultValue": "lanterna"
+    },
+    {
+      "name": "metallum.ui.music-search-provider",
+      "type": "java.lang.String",
+      "description": "Selecciona el servicio que se abrira al presionar Enter sobre un track.",
+      "defaultValue": "youtube_music"
     }
   ],
   "hints": [
@@ -18,6 +24,19 @@
         {
           "value": "console",
           "description": "Usa la interfaz de consola clasica."
+        }
+      ]
+    },
+    {
+      "name": "metallum.ui.music-search-provider",
+      "values": [
+        {
+          "value": "youtube_music",
+          "description": "Abre la busqueda del track en YouTube Music."
+        },
+        {
+          "value": "youtube",
+          "description": "Abre la busqueda del track en YouTube."
         }
       ]
     }

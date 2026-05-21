@@ -34,6 +34,11 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.stereotype.Component;
 
+import java.awt.Desktop;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -44,6 +49,7 @@ public class LanternaRunner implements MetallumUi {
     private final SearchBandsUseCase searchBands;
     private final GetBandDetailsUseCase getBandDetails;
     private final GetAlbumDetailsUseCase getAlbumDetails;
+    private final MetallumUiProperties metallumUiProperties;
     private final ConfigurableApplicationContext applicationContext;
 
     private final List<BandSummary> searchResults = new ArrayList<>();
@@ -60,10 +66,12 @@ public class LanternaRunner implements MetallumUi {
     public LanternaRunner(SearchBandsUseCase searchBands,
                           GetBandDetailsUseCase getBandDetails,
                           GetAlbumDetailsUseCase getAlbumDetails,
+                          MetallumUiProperties metallumUiProperties,
                           ConfigurableApplicationContext applicationContext) {
         this.searchBands = searchBands;
         this.getBandDetails = getBandDetails;
         this.getAlbumDetails = getAlbumDetails;
+        this.metallumUiProperties = metallumUiProperties;
         this.applicationContext = applicationContext;
     }
 
@@ -383,12 +391,75 @@ public class LanternaRunner implements MetallumUi {
                     track.duration().isBlank() ? "-" : track.duration()
             );
         }
+        tracksTable.setSelectAction(() -> openSelectedTrack(detail, tracksTable.getSelectedRow()));
 
         panel.addComponent(tracksTable.withBorder(Borders.singleLine("Tracklist")));
-        panel.addComponent(new Button("Cerrar", detailWindow::close));
+        Panel actions = new Panel(new GridLayout(2));
+        actions.addComponent(new Button("Abrir track", () -> openSelectedTrack(detail, tracksTable.getSelectedRow())));
+        actions.addComponent(new Button("Cerrar", detailWindow::close));
+        panel.addComponent(actions);
 
         detailWindow.setComponent(panel);
         gui.addWindowAndWait(detailWindow);
+    }
+
+    private void openSelectedTrack(AlbumDetail albumDetail, int selectedRow) {
+        if (selectedRow < 0 || selectedRow >= albumDetail.tracks().size()) {
+            showInfo("Track", "Selecciona un track primero.");
+            return;
+        }
+
+        AlbumDetail.TrackEntry track = albumDetail.tracks().get(selectedRow);
+        String bandName = selectedBandDetail != null ? selectedBandDetail.name() : "";
+        String query = buildTrackSearchQuery(bandName, albumDetail.title(), track.title());
+        String searchUrl = buildMusicSearchUrl(query);
+
+        try {
+            openInBrowser(searchUrl);
+        } catch (Exception e) {
+            showError("Error al abrir navegador", e.getMessage());
+        }
+    }
+
+    private String buildTrackSearchQuery(String bandName, String albumTitle, String trackTitle) {
+        return String.join(" ",
+                List.of(bandName, trackTitle, albumTitle).stream()
+                        .filter(value -> value != null && !value.isBlank())
+                        .toList()
+        );
+    }
+
+    private String buildMusicSearchUrl(String query) {
+        String encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8);
+        return switch (metallumUiProperties.getMusicSearchProvider()) {
+            case YOUTUBE -> "https://www.youtube.com/results?search_query=" + encodedQuery;
+            case YOUTUBE_MUSIC -> "https://music.youtube.com/search?q=" + encodedQuery;
+        };
+    }
+
+    private void openInBrowser(String url) throws Exception {
+        if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+            Desktop.getDesktop().browse(URI.create(url));
+            return;
+        }
+
+        String osName = System.getProperty("os.name", "").toLowerCase();
+        if (osName.contains("mac")) {
+            new ProcessBuilder("open", url)
+                    .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                    .redirectError(ProcessBuilder.Redirect.DISCARD)
+                    .start();
+        } else if (osName.contains("win")) {
+            new ProcessBuilder("cmd", "/c", "start", "", url)
+                    .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                    .redirectError(ProcessBuilder.Redirect.DISCARD)
+                    .start();
+        } else {
+            new ProcessBuilder("xdg-open", url)
+                    .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                    .redirectError(ProcessBuilder.Redirect.DISCARD)
+                    .start();
+        }
     }
 
     private void showError(String title, String message) {
