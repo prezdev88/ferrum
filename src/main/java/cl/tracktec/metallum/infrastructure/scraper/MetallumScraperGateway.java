@@ -267,9 +267,8 @@ public class MetallumScraperGateway implements BandSearchGateway {
         Element discoSection = doc.selectFirst("div#band_disco");
         if (discoSection != null) {
             Elements rows = discoSection.select("table.discog tbody tr");
-            int limit = Math.min(rows.size(), 20);
-            for (int i = 0; i < limit; i++) {
-                Elements cols = rows.get(i).select("td");
+            for (Element row : rows) {
+                Elements cols = row.select("td");
                 if (cols.size() >= 3) {
                     Element albumAnchor = cols.get(0).selectFirst("a");
                     String albumTitle   = albumAnchor != null ? albumAnchor.text() : cols.get(0).text();
