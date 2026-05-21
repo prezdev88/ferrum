@@ -276,6 +276,9 @@ public class LanternaRunner implements FerrumUi {
             BandDetail detail = getBandDetails.execute(selectedBand.profileUrl());
             selectedBandDetail = detail;
             refreshAlbumsTable(detail.discography());
+            if (albumsTable.getTableModel().getRowCount() > 0) {
+                albumsTable.takeFocus();
+            }
         } catch (RuntimeException e) {
             showError(i18n.t("dialog.band.load_error"), e.getMessage());
         }
