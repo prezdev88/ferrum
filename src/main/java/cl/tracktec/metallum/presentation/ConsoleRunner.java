@@ -214,7 +214,7 @@ public class ConsoleRunner implements MetallumUi {
                 String marker = e.url().isBlank()
                         ? " - "
                         : String.format("%2d.", albumNumber++);
-                String line = String.format("%s %-6s %-14s %s", marker, e.year(), e.type(), e.title());
+                String line = String.format("%s %-6s %-32s %s", marker, e.year(), e.title(), e.type());
                 printField("", line, width);
             }
         }

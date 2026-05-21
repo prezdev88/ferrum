@@ -20,6 +20,7 @@ import com.googlecode.lanterna.gui2.MultiWindowTextGUI;
 import com.googlecode.lanterna.gui2.Panel;
 import com.googlecode.lanterna.gui2.TextBox;
 import com.googlecode.lanterna.gui2.Window;
+import com.googlecode.lanterna.gui2.Interactable.Result;
 import com.googlecode.lanterna.gui2.dialogs.MessageDialog;
 import com.googlecode.lanterna.gui2.dialogs.MessageDialogButton;
 import com.googlecode.lanterna.gui2.table.Table;
@@ -52,10 +53,9 @@ public class LanternaRunner implements MetallumUi {
     private BasicWindow window;
     private TextBox queryBox;
     private Table<String> resultsTable;
-    private TextBox bandDetailsBox;
     private Table<String> albumsTable;
-    private TextBox albumDetailsBox;
     private boolean exitRequested;
+    private BandDetail selectedBandDetail;
 
     public LanternaRunner(SearchBandsUseCase searchBands,
                           GetBandDetailsUseCase getBandDetails,
@@ -79,6 +79,10 @@ public class LanternaRunner implements MetallumUi {
             window = new BasicWindow("Metallum | F4 cerrar") {
                 @Override
                 public boolean handleInput(KeyStroke keyStroke) {
+                    if (keyStroke.getKeyType() == KeyType.F3) {
+                        queryBox.takeFocus();
+                        return true;
+                    }
                     if (keyStroke.getKeyType() == KeyType.F4) {
                         requestApplicationClose();
                         return true;
@@ -128,7 +132,16 @@ public class LanternaRunner implements MetallumUi {
         searchPanel.setLayoutData(LinearLayout.createLayoutData(LinearLayout.Alignment.Fill));
         searchPanel.addComponent(new Label("Buscar banda:"));
 
-        queryBox = new TextBox(new TerminalSize(30, 1));
+        queryBox = new TextBox(new TerminalSize(30, 1)) {
+            @Override
+            public synchronized Result handleKeyStroke(KeyStroke keyStroke) {
+                if (keyStroke.getKeyType() == KeyType.Enter) {
+                    search();
+                    return Result.HANDLED;
+                }
+                return super.handleKeyStroke(keyStroke);
+            }
+        };
         queryBox.setLayoutData(GridLayout.createHorizontallyFilledLayoutData(1));
         searchPanel.addComponent(queryBox);
 
@@ -151,29 +164,22 @@ public class LanternaRunner implements MetallumUi {
     }
 
     private Panel createDetailsPanel() {
-        Panel columns = new Panel(new GridLayout(2));
-        columns.setLayoutData(LinearLayout.createLayoutData(LinearLayout.Alignment.Fill));
-
-        bandDetailsBox = createReadOnlyTextBox(new TerminalSize(50, 10));
-        columns.addComponent(bandDetailsBox.withBorder(Borders.singleLine("Banda")));
-
-        Panel rightColumn = new Panel(new LinearLayout(Direction.VERTICAL));
-        albumsTable = new Table<>("#", "Ano", "Tipo", "Titulo");
+        Panel details = new Panel(new LinearLayout(Direction.VERTICAL));
+        albumsTable = new Table<>("#", "Ano", "Titulo", "Tipo");
         albumsTable.setSelectAction(this::loadSelectedAlbum);
-        rightColumn.addComponent(albumsTable.withBorder(Borders.singleLine("Discografia")));
-        rightColumn.addComponent(new Button("Ver album seleccionado", this::loadSelectedAlbum));
+        details.addComponent(albumsTable.withBorder(Borders.singleLine("Discografia")));
 
-        albumDetailsBox = createReadOnlyTextBox(new TerminalSize(50, 6));
-        rightColumn.addComponent(albumDetailsBox.withBorder(Borders.singleLine("Album")));
-
-        columns.addComponent(rightColumn);
-        return columns;
+        Panel actions = new Panel(new GridLayout(2));
+        actions.addComponent(new Button("Ver banda en ventana", this::showSelectedBandWindow));
+        actions.addComponent(new Button("Ver album en ventana", this::loadSelectedAlbum));
+        details.addComponent(actions);
+        return details;
     }
 
     private Panel createFooter() {
         Panel footer = new Panel(new LinearLayout(Direction.VERTICAL));
         footer.addComponent(new Label(
-                "F4 cierra la aplicacion | Enter ejecuta la accion del foco | ESC cierra dialogos | Ctrl+C termina la app"
+                "F3 enfoca buscar | F4 cierra la aplicacion | Enter ejecuta la accion del foco | ESC cierra dialogos | Ctrl+C termina la app"
         ).setForegroundColor(TextColor.ANSI.WHITE));
         return footer;
     }
@@ -239,9 +245,8 @@ public class LanternaRunner implements MetallumUi {
 
         try {
             BandDetail detail = getBandDetails.execute(selectedBand.profileUrl());
-            bandDetailsBox.setText(formatBandDetails(detail));
+            selectedBandDetail = detail;
             refreshAlbumsTable(detail.discography());
-            albumDetailsBox.setText("");
         } catch (RuntimeException e) {
             showError("Error al cargar banda", e.getMessage());
         }
@@ -254,7 +259,7 @@ public class LanternaRunner implements MetallumUi {
         int albumNumber = 1;
         for (BandDetail.AlbumEntry album : discography) {
             if (album.url().isBlank()) {
-                albumsTable.getTableModel().addRow("-", album.year(), album.type(), album.title());
+                albumsTable.getTableModel().addRow("-", album.year(), album.title(), album.type());
                 continue;
             }
 
@@ -262,8 +267,8 @@ public class LanternaRunner implements MetallumUi {
             albumsTable.getTableModel().addRow(
                     String.valueOf(albumNumber++),
                     album.year(),
-                    album.type(),
-                    album.title()
+                    album.title(),
+                    album.type()
             );
         }
     }
@@ -289,17 +294,24 @@ public class LanternaRunner implements MetallumUi {
 
         try {
             AlbumDetail detail = getAlbumDetails.execute(selectableAlbums.get(index).url());
-            albumDetailsBox.setText(formatAlbumDetails(detail));
+            showTextWindow("Album", formatAlbumDetails(detail), new TerminalSize(90, 28));
         } catch (RuntimeException e) {
             showError("Error al cargar album", e.getMessage());
         }
     }
 
     private void clearBandDetails() {
-        bandDetailsBox.setText("");
-        albumDetailsBox.setText("");
+        selectedBandDetail = null;
         selectableAlbums.clear();
         albumsTable.getTableModel().clear();
+    }
+
+    private void showSelectedBandWindow() {
+        if (selectedBandDetail == null) {
+            showInfo("Banda", "Selecciona una banda y cargala primero.");
+            return;
+        }
+        showTextWindow("Banda", formatBandDetails(selectedBandDetail), new TerminalSize(90, 24));
     }
 
     private String formatBandDetails(BandDetail detail) {
@@ -358,6 +370,21 @@ public class LanternaRunner implements MetallumUi {
         builder.append(value)
                 .append(System.lineSeparator())
                 .append(System.lineSeparator());
+    }
+
+    private void showTextWindow(String title, String content, TerminalSize size) {
+        BasicWindow detailWindow = new BasicWindow(title);
+        detailWindow.setHints(List.of(Window.Hint.MODAL, Window.Hint.CENTERED));
+        detailWindow.setCloseWindowWithEscape(true);
+
+        Panel panel = new Panel(new LinearLayout(Direction.VERTICAL));
+        TextBox contentBox = createReadOnlyTextBox(size);
+        contentBox.setText(content);
+        panel.addComponent(contentBox.withBorder(Borders.singleLine(title)));
+        panel.addComponent(new Button("Cerrar", detailWindow::close));
+
+        detailWindow.setComponent(panel);
+        gui.addWindowAndWait(detailWindow);
     }
 
     private void showError(String title, String message) {
