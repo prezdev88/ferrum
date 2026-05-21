@@ -11,6 +11,35 @@
       "type": "java.lang.String",
       "description": "Selecciona el servicio que se abrira al presionar Enter sobre un track.",
       "defaultValue": "youtube_music"
+    },
+    {
+      "name": "metallum.cache.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Activa o desactiva el cache persistente en disco.",
+      "defaultValue": true
+    },
+    {
+      "name": "metallum.cache.directory",
+      "type": "java.nio.file.Path",
+      "description": "Directorio base donde se almacenan los archivos JSON del cache."
+    },
+    {
+      "name": "metallum.cache.search.ttl",
+      "type": "java.time.Duration",
+      "description": "Tiempo de vida del cache para resultados de busqueda.",
+      "defaultValue": "1d"
+    },
+    {
+      "name": "metallum.cache.band.ttl",
+      "type": "java.time.Duration",
+      "description": "Tiempo de vida del cache para detalles de bandas y su discografia.",
+      "defaultValue": "7d"
+    },
+    {
+      "name": "metallum.cache.album.ttl",
+      "type": "java.time.Duration",
+      "description": "Tiempo de vida del cache para detalles de albumes.",
+      "defaultValue": "30d"
     }
   ],
   "hints": [

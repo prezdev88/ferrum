@@ -29,7 +29,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
-@Component
+@Component("remoteBandSearchGateway")
 public class MetallumScraperGateway implements BandSearchGateway {
 
     private static final String BASE_URL   = "https://www.metal-archives.com/";
