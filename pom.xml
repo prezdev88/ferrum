@@ -11,10 +11,10 @@
     </parent>
 
     <groupId>cl.tracktec</groupId>
-    <artifactId>metallum</artifactId>
+    <artifactId>ferrum</artifactId>
     <version>1.0.0</version>
-    <name>metallum</name>
-    <description>Scraper de consola para Encyclopaedia Metallum</description>
+    <name>ferrum</name>
+    <description>Ferrum, scraper de consola para Metal Archives</description>
 
     <properties>
         <java.version>21</java.version>

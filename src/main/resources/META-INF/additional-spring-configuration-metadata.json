@@ -1,42 +1,42 @@
 {
   "properties": [
     {
-      "name": "metallum.ui.type",
+      "name": "ferrum.ui.type",
       "type": "java.lang.String",
-      "description": "Selecciona la implementacion de interfaz de usuario de Metallum.",
+      "description": "Selecciona la implementacion de interfaz de usuario de Ferrum.",
       "defaultValue": "lanterna"
     },
     {
-      "name": "metallum.ui.music-search-provider",
+      "name": "ferrum.ui.music-search-provider",
       "type": "java.lang.String",
       "description": "Selecciona el servicio que se abrira al presionar Enter sobre un track.",
       "defaultValue": "youtube_music"
     },
     {
-      "name": "metallum.cache.enabled",
+      "name": "ferrum.cache.enabled",
       "type": "java.lang.Boolean",
       "description": "Activa o desactiva el cache persistente en disco.",
       "defaultValue": true
     },
     {
-      "name": "metallum.cache.directory",
+      "name": "ferrum.cache.directory",
       "type": "java.nio.file.Path",
       "description": "Directorio base donde se almacenan los archivos JSON del cache."
     },
     {
-      "name": "metallum.cache.search.ttl",
+      "name": "ferrum.cache.search.ttl",
       "type": "java.time.Duration",
       "description": "Tiempo de vida del cache para resultados de busqueda.",
       "defaultValue": "1d"
     },
     {
-      "name": "metallum.cache.band.ttl",
+      "name": "ferrum.cache.band.ttl",
       "type": "java.time.Duration",
       "description": "Tiempo de vida del cache para detalles de bandas y su discografia.",
       "defaultValue": "7d"
     },
     {
-      "name": "metallum.cache.album.ttl",
+      "name": "ferrum.cache.album.ttl",
       "type": "java.time.Duration",
       "description": "Tiempo de vida del cache para detalles de albumes.",
       "defaultValue": "30d"
@@ -44,7 +44,7 @@
   ],
   "hints": [
     {
-      "name": "metallum.ui.type",
+      "name": "ferrum.ui.type",
       "values": [
         {
           "value": "lanterna",
@@ -57,7 +57,7 @@
       ]
     },
     {
-      "name": "metallum.ui.music-search-provider",
+      "name": "ferrum.ui.music-search-provider",
       "values": [
         {
           "value": "youtube_music",
