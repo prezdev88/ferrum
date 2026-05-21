@@ -13,6 +13,18 @@
       "defaultValue": "youtube_music"
     },
     {
+      "name": "ferrum.ui.language",
+      "type": "java.lang.String",
+      "description": "Idioma de la UI al iniciar. Soporta: es, en.",
+      "defaultValue": "en"
+    },
+    {
+      "name": "ferrum.browser.visible",
+      "type": "java.lang.Boolean",
+      "description": "Si es true, abre el navegador de Playwright visible (no headless).",
+      "defaultValue": false
+    },
+    {
       "name": "ferrum.cache.enabled",
       "type": "java.lang.Boolean",
       "description": "Activa o desactiva el cache persistente en disco.",
@@ -66,6 +78,19 @@
         {
           "value": "youtube",
           "description": "Abre la busqueda del track en YouTube."
+        }
+      ]
+    },
+    {
+      "name": "ferrum.ui.language",
+      "values": [
+        {
+          "value": "es",
+          "description": "Inicia la UI en espanol."
+        },
+        {
+          "value": "en",
+          "description": "Inicia la UI en ingles."
         }
       ]
     }

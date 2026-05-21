@@ -7,6 +7,10 @@ public class FerrumUiProperties {
 
     private Type type = Type.LANTERNA;
     private MusicSearchProvider musicSearchProvider = MusicSearchProvider.YOUTUBE_MUSIC;
+    /**
+     * UI language used on startup. Supported: "es", "en".
+     */
+    private String language;
 
     public Type getType() {
         return type;
@@ -22,6 +26,14 @@ public class FerrumUiProperties {
 
     public void setMusicSearchProvider(MusicSearchProvider musicSearchProvider) {
         this.musicSearchProvider = musicSearchProvider;
+    }
+
+    public String getLanguage() {
+        return language;
+    }
+
+    public void setLanguage(String language) {
+        this.language = language;
     }
 
     public enum Type {

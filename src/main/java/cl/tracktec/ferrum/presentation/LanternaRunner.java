@@ -41,6 +41,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -60,11 +61,12 @@ public class LanternaRunner implements FerrumUi {
     private MultiWindowTextGUI gui;
     private BasicWindow window;
     private TextBox queryBox;
-    private ComboBox<BandSearchType> searchTypeBox;
+    private ComboBox<SearchTypeOption> searchTypeBox;
     private Table<String> resultsTable;
     private Table<String> albumsTable;
     private boolean exitRequested;
     private BandDetail selectedBandDetail;
+    private I18n i18n;
 
     public LanternaRunner(SearchBandsUseCase searchBands,
                           GetBandDetailsUseCase getBandDetails,
@@ -87,9 +89,15 @@ public class LanternaRunner implements FerrumUi {
             screen.setCursorPosition(null);
 
             gui = new MultiWindowTextGUI(screen);
-            window = new BasicWindow("Ferrum | F4 cerrar") {
+            initI18n();
+
+            window = new BasicWindow(i18n.t("app.window_title")) {
                 @Override
                 public boolean handleInput(KeyStroke keyStroke) {
+                    if (keyStroke.getKeyType() == KeyType.F2) {
+                        toggleLanguage();
+                        return true;
+                    }
                     if (keyStroke.getKeyType() == KeyType.F3) {
                         queryBox.takeFocus();
                         return true;
@@ -130,10 +138,10 @@ public class LanternaRunner implements FerrumUi {
 
     private Panel createHeader() {
         Panel header = new Panel(new LinearLayout(Direction.VERTICAL));
-        header.addComponent(new Label("FERRUM")
+        header.addComponent(new Label(i18n.t("app.header_title"))
                 .addStyle(SGR.BOLD)
                 .setForegroundColor(TextColor.ANSI.RED));
-        header.addComponent(new Label("Ferrum terminal UI")
+        header.addComponent(new Label(i18n.t("app.header_subtitle"))
                 .setForegroundColor(TextColor.ANSI.WHITE_BRIGHT));
         return header;
     }
@@ -141,7 +149,6 @@ public class LanternaRunner implements FerrumUi {
     private Panel createSearchPanel() {
         Panel searchPanel = new Panel(new GridLayout(3));
         searchPanel.setLayoutData(LinearLayout.createLayoutData(LinearLayout.Alignment.Fill));
-        searchPanel.addComponent(new Label("Buscar banda:"));
 
         queryBox = new TextBox(new TerminalSize(30, 1)) {
             @Override
@@ -156,39 +163,48 @@ public class LanternaRunner implements FerrumUi {
         queryBox.setLayoutData(GridLayout.createHorizontallyFilledLayoutData(1));
         searchPanel.addComponent(queryBox);
 
-        searchTypeBox = new ComboBox<>(BandSearchType.values());
+        searchTypeBox = new ComboBox<>(buildSearchTypeOptions());
         searchTypeBox.setReadOnly(true);
         searchTypeBox.setDropDownNumberOfRows(BandSearchType.values().length);
-        searchTypeBox.setSelectedItem(BandSearchType.BAND_NAME);
+        searchTypeBox.setSelectedItem(SearchTypeOption.of(BandSearchType.BAND_NAME, i18n));
         searchPanel.addComponent(searchTypeBox);
 
         Panel wrapper = new Panel(new LinearLayout(Direction.VERTICAL));
-        wrapper.addComponent(searchPanel.withBorder(Borders.singleLine("Busqueda")));
+        wrapper.addComponent(searchPanel.withBorder(Borders.singleLine(i18n.t("search.border"))));
         return wrapper;
     }
 
     private Panel createResultsPanel() {
-        resultsTable = new Table<>("#", "Banda", "Pais", "Estilo");
+        resultsTable = new Table<>(
+                i18n.t("results.col.index"),
+                i18n.t("results.col.band"),
+                i18n.t("results.col.country"),
+                i18n.t("results.col.genre")
+        );
         resultsTable.setSelectAction(this::loadSelectedBand);
 
         Panel panel = new Panel(new LinearLayout(Direction.VERTICAL));
-        panel.addComponent(resultsTable.withBorder(Borders.singleLine("Resultados")));
+        panel.addComponent(resultsTable.withBorder(Borders.singleLine(i18n.t("results.border"))));
         return panel;
     }
 
     private Panel createDetailsPanel() {
         Panel details = new Panel(new LinearLayout(Direction.VERTICAL));
-        albumsTable = new Table<>("#", "Ano", "Titulo", "Tipo");
+        albumsTable = new Table<>(
+                i18n.t("albums.col.index"),
+                i18n.t("albums.col.year"),
+                i18n.t("albums.col.title"),
+                i18n.t("albums.col.type")
+        );
         albumsTable.setSelectAction(this::loadSelectedAlbum);
-        details.addComponent(albumsTable.withBorder(Borders.singleLine("Discografia")));
+        details.addComponent(albumsTable.withBorder(Borders.singleLine(i18n.t("details.border"))));
         return details;
     }
 
     private Panel createFooter() {
         Panel footer = new Panel(new LinearLayout(Direction.VERTICAL));
-        footer.addComponent(new Label(
-                "F3 enfoca buscar | F4 cierra la aplicacion | Enter ejecuta la accion del foco | ESC cierra dialogos | Ctrl+C termina la app"
-        ).setForegroundColor(TextColor.ANSI.WHITE));
+        footer.addComponent(new Label(i18n.t("footer.help"))
+                .setForegroundColor(TextColor.ANSI.WHITE));
         return footer;
     }
 
@@ -206,23 +222,23 @@ public class LanternaRunner implements FerrumUi {
     private void search() {
         String query = queryBox.getText().trim();
         if (query.isBlank()) {
-            showInfo("Busqueda", "Escribe un nombre de banda.");
+            showInfo(i18n.t("dialog.search.title"), i18n.t("dialog.search.empty"));
             return;
         }
 
         try {
             searchResults.clear();
-            searchResults.addAll(searchBands.execute(query, searchTypeBox.getSelectedItem()));
+            searchResults.addAll(searchBands.execute(query, searchTypeBox.getSelectedItem().type));
             refreshResultsTable();
             clearBandDetails();
 
             if (searchResults.isEmpty()) {
-                showInfo("Sin resultados", "No se encontraron bandas con ese nombre.");
+                showInfo(i18n.t("dialog.search.no_results_title"), i18n.t("dialog.search.no_results"));
             } else {
                 resultsTable.takeFocus();
             }
         } catch (RuntimeException e) {
-            showError("Error al buscar", e.getMessage());
+            showError(i18n.t("dialog.search_error"), e.getMessage());
         }
     }
 
@@ -242,13 +258,13 @@ public class LanternaRunner implements FerrumUi {
     private void loadSelectedBand() {
         int selectedRow = resultsTable.getSelectedRow();
         if (selectedRow < 0 || selectedRow >= searchResults.size()) {
-            showInfo("Banda", "Selecciona una banda primero.");
+            showInfo(i18n.t("dialog.band.title"), i18n.t("dialog.band.select_first"));
             return;
         }
 
         BandSummary selectedBand = searchResults.get(selectedRow);
         if (selectedBand.profileUrl().isBlank()) {
-            showInfo("Banda", "La banda seleccionada no tiene pagina disponible.");
+            showInfo(i18n.t("dialog.band.title"), i18n.t("dialog.band.no_page"));
             return;
         }
 
@@ -257,7 +273,7 @@ public class LanternaRunner implements FerrumUi {
             selectedBandDetail = detail;
             refreshAlbumsTable(detail.discography());
         } catch (RuntimeException e) {
-            showError("Error al cargar banda", e.getMessage());
+            showError(i18n.t("dialog.band.load_error"), e.getMessage());
         }
     }
 
@@ -285,19 +301,19 @@ public class LanternaRunner implements FerrumUi {
     private void loadSelectedAlbum() {
         int selectedRow = albumsTable.getSelectedRow();
         if (selectedRow < 0) {
-            showInfo("Album", "Selecciona un album primero.");
+            showInfo(i18n.t("dialog.album.title"), i18n.t("dialog.album.select_first"));
             return;
         }
 
         String albumNumber = albumsTable.getTableModel().getRow(selectedRow).get(0);
         if ("-".equals(albumNumber)) {
-            showInfo("Album", "Ese item no tiene pagina de album.");
+            showInfo(i18n.t("dialog.album.title"), i18n.t("dialog.album.no_page"));
             return;
         }
 
         int index = Integer.parseInt(albumNumber) - 1;
         if (index < 0 || index >= selectableAlbums.size()) {
-            showInfo("Album", "No se pudo resolver el album seleccionado.");
+            showInfo(i18n.t("dialog.album.title"), i18n.t("dialog.album.resolve_error"));
             return;
         }
 
@@ -305,7 +321,7 @@ public class LanternaRunner implements FerrumUi {
             AlbumDetail detail = getAlbumDetails.execute(selectableAlbums.get(index).url());
             showAlbumWindow(detail);
         } catch (RuntimeException e) {
-            showError("Error al cargar album", e.getMessage());
+            showError(i18n.t("dialog.album.load_error"), e.getMessage());
         }
     }
 
@@ -318,15 +334,15 @@ public class LanternaRunner implements FerrumUi {
     private String formatBandDetails(BandDetail detail) {
         StringBuilder builder = new StringBuilder();
         appendLine(builder, detail.name());
-        appendField(builder, "Pais", detail.country());
-        appendField(builder, "Localidad", detail.location());
-        appendField(builder, "Estado", detail.status());
-        appendField(builder, "Formacion", detail.formedIn());
-        appendField(builder, "Anos activo", detail.yearsActive());
-        appendField(builder, "Genero", detail.genre());
-        appendField(builder, "Tematicas", detail.lyricalThemes());
-        appendField(builder, "Sello", detail.label());
-        appendField(builder, "URL", detail.profileUrl());
+        appendField(builder, i18n.t("band.field.country"), detail.country());
+        appendField(builder, i18n.t("band.field.location"), detail.location());
+        appendField(builder, i18n.t("band.field.status"), detail.status());
+        appendField(builder, i18n.t("band.field.formed_in"), detail.formedIn());
+        appendField(builder, i18n.t("band.field.years_active"), detail.yearsActive());
+        appendField(builder, i18n.t("band.field.genre"), detail.genre());
+        appendField(builder, i18n.t("band.field.themes"), detail.lyricalThemes());
+        appendField(builder, i18n.t("band.field.label"), detail.label());
+        appendField(builder, i18n.t("band.field.url"), detail.profileUrl());
         return builder.toString();
     }
 
@@ -358,25 +374,29 @@ public class LanternaRunner implements FerrumUi {
         TextBox contentBox = createReadOnlyTextBox(size);
         contentBox.setText(content);
         panel.addComponent(contentBox.withBorder(Borders.singleLine(title)));
-        panel.addComponent(new Button("Cerrar", detailWindow::close));
+        panel.addComponent(new Button(i18n.t("button.close"), detailWindow::close));
 
         detailWindow.setComponent(panel);
         gui.addWindowAndWait(detailWindow);
     }
 
     private void showAlbumWindow(AlbumDetail detail) {
-        BasicWindow detailWindow = new BasicWindow("Album");
+        BasicWindow detailWindow = new BasicWindow(i18n.t("dialog.album.title"));
         detailWindow.setHints(List.of(Window.Hint.MODAL, Window.Hint.CENTERED));
         detailWindow.setCloseWindowWithEscape(true);
 
         Panel panel = new Panel(new LinearLayout(Direction.VERTICAL));
         panel.addComponent(new Label(detail.title()).addStyle(SGR.BOLD));
-        panel.addComponent(new Label("Tipo: " + detail.type()));
-        panel.addComponent(new Label("Fecha: " + detail.releaseDate()));
-        panel.addComponent(new Label("Sello: " + detail.label()));
-        panel.addComponent(new Label("URL: " + detail.url()));
+        panel.addComponent(new Label(i18n.t("album.field.type", detail.type())));
+        panel.addComponent(new Label(i18n.t("album.field.date", detail.releaseDate())));
+        panel.addComponent(new Label(i18n.t("album.field.label", detail.label())));
+        panel.addComponent(new Label(i18n.t("album.field.url", detail.url())));
 
-        Table<String> tracksTable = new Table<>("#", "Titulo", "Duracion");
+        Table<String> tracksTable = new Table<>(
+                i18n.t("tracks.col.index"),
+                i18n.t("tracks.col.title"),
+                i18n.t("tracks.col.duration")
+        );
         for (AlbumDetail.TrackEntry track : detail.tracks()) {
             tracksTable.getTableModel().addRow(
                     track.number(),
@@ -386,10 +406,10 @@ public class LanternaRunner implements FerrumUi {
         }
         tracksTable.setSelectAction(() -> openSelectedTrack(detail, tracksTable.getSelectedRow()));
 
-        panel.addComponent(tracksTable.withBorder(Borders.singleLine("Tracklist")));
+        panel.addComponent(tracksTable.withBorder(Borders.singleLine(i18n.t("tracks.border"))));
         Panel actions = new Panel(new GridLayout(2));
-        actions.addComponent(new Button("Abrir track", () -> openSelectedTrack(detail, tracksTable.getSelectedRow())));
-        actions.addComponent(new Button("Cerrar", detailWindow::close));
+        actions.addComponent(new Button(i18n.t("button.open_track"), () -> openSelectedTrack(detail, tracksTable.getSelectedRow())));
+        actions.addComponent(new Button(i18n.t("button.close"), detailWindow::close));
         panel.addComponent(actions);
 
         detailWindow.setComponent(panel);
@@ -398,7 +418,7 @@ public class LanternaRunner implements FerrumUi {
 
     private void openSelectedTrack(AlbumDetail albumDetail, int selectedRow) {
         if (selectedRow < 0 || selectedRow >= albumDetail.tracks().size()) {
-            showInfo("Track", "Selecciona un track primero.");
+            showInfo(i18n.t("dialog.track.title"), i18n.t("dialog.track.select_first"));
             return;
         }
 
@@ -410,7 +430,7 @@ public class LanternaRunner implements FerrumUi {
         try {
             openInBrowser(searchUrl);
         } catch (Exception e) {
-            showError("Error al abrir navegador", e.getMessage());
+            showError(i18n.t("dialog.browser_error"), e.getMessage());
         }
     }
 
@@ -461,5 +481,75 @@ public class LanternaRunner implements FerrumUi {
 
     private void showInfo(String title, String message) {
         MessageDialog.showMessageDialog(gui, title, message, MessageDialogButton.OK);
+    }
+
+    private void initI18n() {
+        i18n = new I18n("i18n.messages", toLocale(ferrumUiProperties.getLanguage()));
+    }
+
+    private void toggleLanguage() {
+        Locale next = "es".equalsIgnoreCase(i18n.getLocale().getLanguage()) ? Locale.ENGLISH : new Locale("es");
+        i18n.setLocale(next);
+        rebuildUi();
+    }
+
+    private Locale toLocale(String language) {
+        if (language == null || language.isBlank()) return Locale.ENGLISH;
+        String l = language.trim().toLowerCase();
+        return "en".equals(l) ? Locale.ENGLISH : new Locale("es");
+    }
+
+    private void rebuildUi() {
+        // Preserve minimal state across rebuilds (borders/titles are not easily mutable).
+        String query = queryBox != null ? queryBox.getText() : "";
+        BandSearchType selectedType = searchTypeBox != null && searchTypeBox.getSelectedItem() != null
+                ? searchTypeBox.getSelectedItem().type
+                : BandSearchType.BAND_NAME;
+
+        window.setTitle(i18n.t("app.window_title"));
+        window.setComponent(buildContent());
+
+        queryBox.setText(query);
+        searchTypeBox.setSelectedItem(SearchTypeOption.of(selectedType, i18n));
+
+        refreshResultsTable();
+        if (selectedBandDetail != null) {
+            refreshAlbumsTable(selectedBandDetail.discography());
+        } else {
+            clearBandDetails();
+        }
+    }
+
+    private List<SearchTypeOption> buildSearchTypeOptions() {
+        List<SearchTypeOption> options = new ArrayList<>();
+        for (BandSearchType type : BandSearchType.values()) {
+            options.add(SearchTypeOption.of(type, i18n));
+        }
+        return options;
+    }
+
+    private static final class SearchTypeOption {
+        private final BandSearchType type;
+        private final String label;
+
+        private SearchTypeOption(BandSearchType type, String label) {
+            this.type = type;
+            this.label = label;
+        }
+
+        static SearchTypeOption of(BandSearchType type, I18n i18n) {
+            // Fallback to the enum's own label if the key is missing.
+            String key = "searchType." + type.name();
+            String localized = i18n.t(key);
+            if (localized.startsWith("??") && localized.endsWith("??")) {
+                localized = type.toString();
+            }
+            return new SearchTypeOption(type, localized);
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
     }
 }
