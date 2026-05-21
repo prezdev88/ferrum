@@ -168,7 +168,7 @@ public class LanternaRunner implements FerrumUi {
     }
 
     private Panel createResultsPanel() {
-        resultsTable = new Table<>("#", "Resultado", "Dato 1", "Dato 2", "Dato 3");
+        resultsTable = new Table<>("#", "Banda", "Pais", "Estilo");
         resultsTable.setSelectAction(this::loadSelectedBand);
 
         Panel panel = new Panel(new LinearLayout(Direction.VERTICAL));
@@ -218,6 +218,8 @@ public class LanternaRunner implements FerrumUi {
 
             if (searchResults.isEmpty()) {
                 showInfo("Sin resultados", "No se encontraron bandas con ese nombre.");
+            } else {
+                resultsTable.takeFocus();
             }
         } catch (RuntimeException e) {
             showError("Error al buscar", e.getMessage());
@@ -232,8 +234,7 @@ public class LanternaRunner implements FerrumUi {
                     String.valueOf(i + 1),
                     band.name(),
                     band.country(),
-                    band.genre(),
-                    band.status()
+                    band.genre()
             );
         }
     }
