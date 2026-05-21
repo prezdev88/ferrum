@@ -106,6 +106,10 @@ public class LanternaRunner implements FerrumUi {
                         requestApplicationClose();
                         return true;
                     }
+                    if (keyStroke.getKeyType() == KeyType.Escape) {
+                        confirmExit();
+                        return true;
+                    }
                     return super.handleInput(keyStroke);
                 }
             };
@@ -481,6 +485,28 @@ public class LanternaRunner implements FerrumUi {
 
     private void showInfo(String title, String message) {
         MessageDialog.showMessageDialog(gui, title, message, MessageDialogButton.OK);
+    }
+
+    private void confirmExit() {
+        BasicWindow confirm = new BasicWindow(i18n.t("dialog.exit.title"));
+        confirm.setHints(List.of(Window.Hint.MODAL, Window.Hint.CENTERED));
+        confirm.setCloseWindowWithEscape(true);
+
+        Panel panel = new Panel(new LinearLayout(Direction.VERTICAL));
+        panel.addComponent(new Label(i18n.t("dialog.exit.message")));
+
+        Panel actions = new Panel(new GridLayout(2));
+        Button yes = new Button(i18n.t("button.yes"), () -> {
+            confirm.close();
+            requestApplicationClose();
+        });
+        Button no = new Button(i18n.t("button.no"), confirm::close);
+        actions.addComponent(yes);
+        actions.addComponent(no);
+        panel.addComponent(actions);
+
+        confirm.setComponent(panel);
+        gui.addWindowAndWait(confirm);
     }
 
     private void initI18n() {
