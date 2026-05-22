@@ -23,6 +23,7 @@ class AlbumEntry:
 @dataclass(slots=True)
 class BandDetail:
     name: str
+    image_url: str
     country: str
     location: str
     status: str
@@ -45,6 +46,7 @@ class TrackEntry:
 @dataclass(slots=True)
 class AlbumDetail:
     title: str
+    image_url: str
     type: str
     release_date: str
     label: str

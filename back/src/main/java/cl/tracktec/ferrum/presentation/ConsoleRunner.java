@@ -200,6 +200,7 @@ public class ConsoleRunner implements FerrumUi {
         printField("Género",          d.genre(),         width);
         printField("Temáticas",       d.lyricalThemes(), width);
         printField("Sello",           d.label(),         width);
+        printField("Imagen",          DIM + d.imageUrl() + RESET, width);
 
         System.out.println(BOLD + MAGENTA + "╠" + border + "╣" + RESET);
         System.out.println(BOLD + MAGENTA + "║" + RESET +
@@ -287,6 +288,7 @@ public class ConsoleRunner implements FerrumUi {
         printAlbumField("Tipo",           a.type(),        width);
         printAlbumField("Fecha",          a.releaseDate(), width);
         printAlbumField("Sello",          a.label(),       width);
+        printAlbumField("Imagen",         a.imageUrl(),    width);
 
         System.out.println(BOLD + YELLOW + "├" + border + "┤" + RESET);
         System.out.println(BOLD + YELLOW + "│" + RESET + center("TRACKLIST", width) + BOLD + YELLOW + "│" + RESET);

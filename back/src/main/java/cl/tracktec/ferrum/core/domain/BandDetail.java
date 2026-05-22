@@ -4,6 +4,7 @@ import java.util.List;
 
 public record BandDetail(
         String name,
+        String imageUrl,
         String country,
         String location,
         String status,

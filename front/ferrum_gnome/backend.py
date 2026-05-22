@@ -40,6 +40,7 @@ class FerrumBackend:
         payload = self._get_json("/api/band", {"url": profile_url})
         return BandDetail(
             name=payload.get("name", ""),
+            image_url=payload.get("imageUrl", ""),
             country=payload.get("country", ""),
             location=payload.get("location", ""),
             status=payload.get("status", ""),
@@ -64,6 +65,7 @@ class FerrumBackend:
         payload = self._get_json("/api/album", {"url": album_url})
         return AlbumDetail(
             title=payload.get("title", ""),
+            image_url=payload.get("imageUrl", ""),
             type=payload.get("type", ""),
             release_date=payload.get("releaseDate", ""),
             label=payload.get("label", ""),

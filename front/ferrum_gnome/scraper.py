@@ -427,6 +427,7 @@ class FerrumScraper:
 
         return BandDetail(
             name=band_name,
+            image_url="",
             country=country,
             location=location,
             status=status,
@@ -481,6 +482,7 @@ class FerrumScraper:
 
         return AlbumDetail(
             title=title,
+            image_url="",
             type=release_type,
             release_date=release_date,
             label=label,
@@ -498,6 +500,7 @@ class FerrumScraper:
         discography = [AlbumEntry(**item) for item in payload.get("discography", [])]
         return BandDetail(
             name=payload.get("name", ""),
+            image_url=payload.get("image_url", ""),
             country=payload.get("country", ""),
             location=payload.get("location", ""),
             status=payload.get("status", ""),
@@ -516,6 +519,7 @@ class FerrumScraper:
         tracks = [TrackEntry(**item) for item in payload.get("tracks", [])]
         return AlbumDetail(
             title=payload.get("title", ""),
+            image_url=payload.get("image_url", ""),
             type=payload.get("type", ""),
             release_date=payload.get("release_date", ""),
             label=payload.get("label", ""),

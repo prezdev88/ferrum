@@ -4,6 +4,7 @@ import java.util.List;
 
 public record AlbumDetail(
         String title,
+        String imageUrl,
         String type,
         String releaseDate,
         String label,

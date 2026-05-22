@@ -6,6 +6,7 @@ import webbrowser
 from pathlib import Path
 
 import gi
+import requests
 
 gi.require_version("Gdk", "4.0")
 gi.require_version("Gtk", "4.0")
@@ -65,10 +66,15 @@ class AlbumWindow(Adw.ApplicationWindow):
         content.set_margin_start(24)
         content.set_margin_end(24)
 
-        hero = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        hero = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=18)
         hero.add_css_class("card")
         hero.add_css_class("hero-card")
         hero.set_margin_bottom(6)
+
+        hero.append(self.build_remote_artwork(album.image_url, 168, "album-artwork"))
+
+        hero_text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        hero_text.set_hexpand(True)
 
         title = Gtk.Label(label=album.title, xalign=0)
         title.set_wrap(True)
@@ -87,9 +93,10 @@ class AlbumWindow(Adw.ApplicationWindow):
         open_album.connect("clicked", lambda *_: webbrowser.open(album.url))
         actions.append(open_album)
 
-        hero.append(title)
-        hero.append(subtitle)
-        hero.append(actions)
+        hero_text.append(title)
+        hero_text.append(subtitle)
+        hero_text.append(actions)
+        hero.append(hero_text)
 
         tracks_box = Gtk.ListBox()
         tracks_box.add_css_class("boxed-list")
@@ -152,6 +159,60 @@ class AlbumWindow(Adw.ApplicationWindow):
         else:
             url = f"https://music.youtube.com/search?q={encoded}"
         webbrowser.open(url)
+
+    def build_remote_artwork(self, image_url: str, size: int, css_class: str) -> Gtk.Widget:
+        frame = Gtk.Frame()
+        frame.add_css_class("artwork-frame")
+        frame.add_css_class(css_class)
+        frame.set_size_request(size, size)
+
+        stack = Gtk.Stack()
+
+        placeholder = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        placeholder.set_halign(Gtk.Align.CENTER)
+        placeholder.set_valign(Gtk.Align.CENTER)
+        placeholder.add_css_class("artwork-placeholder")
+
+        icon = Gtk.Image.new_from_icon_name("image-x-generic-symbolic")
+        icon.set_pixel_size(max(32, size // 4))
+        placeholder.append(icon)
+
+        picture = Gtk.Picture()
+        picture.set_can_shrink(True)
+        picture.set_content_fit(Gtk.ContentFit.COVER)
+
+        stack.add_named(placeholder, "placeholder")
+        stack.add_named(picture, "image")
+        stack.set_visible_child_name("placeholder")
+        frame.set_child(stack)
+
+        if image_url:
+            self.load_remote_artwork(image_url, picture, stack)
+
+        return frame
+
+    def load_remote_artwork(self, image_url: str, picture: Gtk.Picture, stack: Gtk.Stack) -> None:
+        def runner() -> None:
+            try:
+                response = requests.get(image_url, timeout=30)
+                response.raise_for_status()
+                texture = Gdk.Texture.new_from_bytes(GLib.Bytes.new(response.content))
+            except Exception:
+                return
+
+            GLib.idle_add(self.apply_remote_artwork, picture, stack, texture)
+
+        threading.Thread(target=runner, daemon=True).start()
+
+    def apply_remote_artwork(
+        self,
+        picture: Gtk.Picture,
+        stack: Gtk.Stack,
+        texture: Gdk.Texture,
+    ) -> bool:
+        picture.set_paintable(texture)
+        stack.set_visible_child_name("image")
+        return False
 
 
 class FerrumWindow(Adw.ApplicationWindow):
@@ -398,9 +459,14 @@ class FerrumWindow(Adw.ApplicationWindow):
         self.selected_band = detail
         self.clear_box(self.detail_content)
 
-        hero = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        hero = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=18)
         hero.add_css_class("card")
         hero.add_css_class("hero-card")
+
+        hero.append(self.build_remote_artwork(detail.image_url, 184, "band-artwork"))
+
+        hero_text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        hero_text.set_hexpand(True)
 
         title = Gtk.Label(label=detail.name or "Unknown band", xalign=0)
         title.add_css_class("title-1")
@@ -422,9 +488,10 @@ class FerrumWindow(Adw.ApplicationWindow):
             profile_button.connect("clicked", lambda *_: webbrowser.open(detail.profile_url))
             hero_actions.append(profile_button)
 
-        hero.append(title)
-        hero.append(chips)
-        hero.append(hero_actions)
+        hero_text.append(title)
+        hero_text.append(chips)
+        hero_text.append(hero_actions)
+        hero.append(hero_text)
 
         metadata = Gtk.Grid(column_spacing=18, row_spacing=10)
         metadata.add_css_class("card")
@@ -524,6 +591,60 @@ class FerrumWindow(Adw.ApplicationWindow):
         label = Gtk.Label(label=text, xalign=0)
         label.add_css_class("chip")
         return label
+
+    def build_remote_artwork(self, image_url: str, size: int, css_class: str) -> Gtk.Widget:
+        frame = Gtk.Frame()
+        frame.add_css_class("artwork-frame")
+        frame.add_css_class(css_class)
+        frame.set_size_request(size, size)
+
+        stack = Gtk.Stack()
+
+        placeholder = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        placeholder.set_halign(Gtk.Align.CENTER)
+        placeholder.set_valign(Gtk.Align.CENTER)
+        placeholder.add_css_class("artwork-placeholder")
+
+        icon = Gtk.Image.new_from_icon_name("image-x-generic-symbolic")
+        icon.set_pixel_size(max(32, size // 4))
+        placeholder.append(icon)
+
+        picture = Gtk.Picture()
+        picture.set_can_shrink(True)
+        picture.set_content_fit(Gtk.ContentFit.COVER)
+
+        stack.add_named(placeholder, "placeholder")
+        stack.add_named(picture, "image")
+        stack.set_visible_child_name("placeholder")
+        frame.set_child(stack)
+
+        if image_url:
+            self.load_remote_artwork(image_url, picture, stack)
+
+        return frame
+
+    def load_remote_artwork(self, image_url: str, picture: Gtk.Picture, stack: Gtk.Stack) -> None:
+        def runner() -> None:
+            try:
+                response = requests.get(image_url, timeout=30)
+                response.raise_for_status()
+                texture = Gdk.Texture.new_from_bytes(GLib.Bytes.new(response.content))
+            except Exception:
+                return
+
+            GLib.idle_add(self.apply_remote_artwork, picture, stack, texture)
+
+        threading.Thread(target=runner, daemon=True).start()
+
+    def apply_remote_artwork(
+        self,
+        picture: Gtk.Picture,
+        stack: Gtk.Stack,
+        texture: Gdk.Texture,
+    ) -> bool:
+        picture.set_paintable(texture)
+        stack.set_visible_child_name("image")
+        return False
 
     def meta_key(self, text: str) -> Gtk.Widget:
         label = Gtk.Label(label=text, xalign=0)

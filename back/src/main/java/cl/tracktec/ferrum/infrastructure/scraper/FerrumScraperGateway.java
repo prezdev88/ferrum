@@ -291,6 +291,13 @@ public class FerrumScraperGateway implements BandSearchGateway {
         String bandName = "";
         Element h1 = doc.selectFirst("h1.band_name");
         if (h1 != null) bandName = h1.text();
+        String imageUrl = extractImageUrl(doc,
+                "a#logo img",
+                "a#photo img",
+                "div.band_name_img img",
+                "div.band_img img",
+                "img[alt*=logo]",
+                "img[alt*=Logo]");
 
         String country = "", location = "", status = "", formedIn = "",
                yearsActive = "", genre = "", lyricalThemes = "", label = "";
@@ -336,7 +343,7 @@ public class FerrumScraperGateway implements BandSearchGateway {
             }
         }
 
-        return new BandDetail(bandName, country, location, status, formedIn,
+        return new BandDetail(bandName, imageUrl, country, location, status, formedIn,
                               yearsActive, genre, lyricalThemes, label,
                               profileUrl, discography);
     }
@@ -369,6 +376,12 @@ public class FerrumScraperGateway implements BandSearchGateway {
         String title = "";
         Element h1 = doc.selectFirst("h1.album_name");
         if (h1 != null) title = h1.text();
+        String imageUrl = extractImageUrl(doc,
+                "a#cover img",
+                "div#cover img",
+                "div.album_img img",
+                "img[alt*=cover]",
+                "img[alt*=Cover]");
 
         String type = "", releaseDate = "", label = "";
         Element infoDiv = doc.selectFirst("dl#album_info");
@@ -402,7 +415,7 @@ public class FerrumScraperGateway implements BandSearchGateway {
             }
         }
 
-        return new AlbumDetail(title, type, releaseDate, label, albumUrl, tracks);
+        return new AlbumDetail(title, imageUrl, type, releaseDate, label, albumUrl, tracks);
     }
 
     private String extractTrackTitle(Element titleCell) {
@@ -414,5 +427,20 @@ public class FerrumScraperGateway implements BandSearchGateway {
             trackTitle = trackTitle.substring(0, trackTitle.length() - "Show Lyrics".length()).trim();
         }
         return trackTitle;
+    }
+
+    private String extractImageUrl(Document doc, String... selectors) {
+        for (String selector : selectors) {
+            Element image = doc.selectFirst(selector);
+            if (image == null) {
+                continue;
+            }
+
+            String imageUrl = image.attr("abs:src").trim();
+            if (!imageUrl.isBlank()) {
+                return imageUrl;
+            }
+        }
+        return "";
     }
 }
