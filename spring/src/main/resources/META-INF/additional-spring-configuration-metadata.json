@@ -4,7 +4,7 @@
       "name": "ferrum.ui.type",
       "type": "java.lang.String",
       "description": "Selecciona la implementacion de interfaz de usuario de Ferrum.",
-      "defaultValue": "lanterna"
+      "defaultValue": "api"
     },
     {
       "name": "ferrum.ui.music-search-provider",
@@ -65,12 +65,24 @@
       "name": "ferrum.ui.type",
       "values": [
         {
+          "value": "api",
+          "description": "Expone Ferrum como backend HTTP."
+        },
+        {
           "value": "lanterna",
           "description": "Usa la interfaz TUI basada en Lanterna."
         },
         {
           "value": "console",
           "description": "Usa la interfaz de consola clasica."
+        },
+        {
+          "value": "json",
+          "description": "Usa la interfaz JSON para integracion con otras apps."
+        },
+        {
+          "value": "refresh_session",
+          "description": "Solo renueva la sesion de Metal Archives y luego sale."
         }
       ]
     },

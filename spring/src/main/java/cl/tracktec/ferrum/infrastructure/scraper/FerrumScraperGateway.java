@@ -9,7 +9,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microsoft.playwright.*;
 import com.microsoft.playwright.options.WaitUntilState;
-import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -41,29 +40,37 @@ public class FerrumScraperGateway implements BandSearchGateway {
 
     @Value("${ferrum.browser.visible:false}")
     private boolean visible;
+    @Value("${ferrum.output.machine:false}")
+    private boolean machineOutput;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private Playwright playwright;
     private Browser    browser;
     private Page       page;
+    private boolean initialized;
 
-    @PostConstruct
-    void init() throws IOException {
+    private synchronized void ensureInitialized() throws IOException {
+        if (initialized) {
+            return;
+        }
+
         playwright = Playwright.create();
-        System.out.println();
+        printStatus("");
 
         if (Files.exists(SESSION_FILE)) {
             printSessionExpiry();
             if (tryHeadlessWithSavedSession()) {
-                System.out.println("Sesión establecida con Metal Archives.\n");
+                printStatus("Sesión establecida con Metal Archives.\n");
+                initialized = true;
                 return;
             }
-            System.out.println("Sesión expirada, se requiere nueva verificación.");
+            printStatus("Sesión expirada, se requiere nueva verificación.");
         }
 
         solveCloudflareAndSaveSession();
-        System.out.println("Sesión establecida con Metal Archives.\n");
+        printStatus("Sesión establecida con Metal Archives.\n");
+        initialized = true;
     }
 
     private void printSessionExpiry() {
@@ -82,16 +89,16 @@ public class FerrumScraperGateway implements BandSearchGateway {
                     if (expires > 0) {
                         Instant expiry = Instant.ofEpochSecond(expires);
                         boolean vigente = expiry.isAfter(Instant.now());
-                        System.out.printf("Sesión guardada — caduca el %s%s%n",
+                        printStatus(String.format("Sesión guardada — caduca el %s%s",
                                 fmt.format(expiry),
-                                vigente ? "" : " (EXPIRADA)");
+                                vigente ? "" : " (EXPIRADA)"));
                     }
                     return;
                 }
             }
-            System.out.println("Cargando sesión guardada...");
+            printStatus("Cargando sesión guardada...");
         } catch (IOException ignored) {
-            System.out.println("Cargando sesión guardada...");
+            printStatus("Cargando sesión guardada...");
         }
     }
 
@@ -117,18 +124,18 @@ public class FerrumScraperGateway implements BandSearchGateway {
         browser = playwright.firefox().launch(new BrowserType.LaunchOptions().setHeadless(false));
         page = browser.newContext().newPage();
 
-        System.out.println("Abriendo navegador...");
+        printStatus("Abriendo navegador...");
         page.navigate(BASE_URL,
                 new Page.NavigateOptions().setWaitUntil(WaitUntilState.DOMCONTENTLOADED));
 
         if (page.title().toLowerCase().contains("moment")) {
-            System.out.println("Completa el captcha en la ventana del navegador...");
+            printStatus("Completa el captcha en la ventana del navegador...");
             page.waitForFunction(
                     "() => !document.title.toLowerCase().includes('moment')",
                     null,
                     new Page.WaitForFunctionOptions().setTimeout(120_000).setPollingInterval(500)
             );
-            System.out.println("¡Verificación superada! Cerrando ventana...");
+            printStatus("¡Verificación superada! Cerrando ventana...");
         }
 
         String storageState = page.context().storageState();
@@ -153,11 +160,19 @@ public class FerrumScraperGateway implements BandSearchGateway {
         if (playwright != null) playwright.close();
     }
 
+    private void printStatus(String message) {
+        if (machineOutput) {
+            return;
+        }
+        System.out.println(message);
+    }
+
     // ── BandSearchGateway ─────────────────────────────────────────────────────
 
     @Override
     public List<BandSummary> search(String query, BandSearchType searchType) {
         try {
+            ensureInitialized();
             String searchPageUrl = String.format(
                     SEARCH_URL,
                     URLEncoder.encode(query, StandardCharsets.UTF_8),
@@ -187,6 +202,7 @@ public class FerrumScraperGateway implements BandSearchGateway {
     @Override
     public BandDetail getDetails(String profileUrl) {
         try {
+            ensureInitialized();
             Thread.sleep(500);
 
             /*
@@ -328,6 +344,7 @@ public class FerrumScraperGateway implements BandSearchGateway {
     @Override
     public AlbumDetail getAlbumDetails(String albumUrl) {
         try {
+            ensureInitialized();
             Thread.sleep(400);
             page.navigate(albumUrl,
                     new Page.NavigateOptions().setWaitUntil(WaitUntilState.DOMCONTENTLOADED));

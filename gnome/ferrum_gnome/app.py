@@ -1,0 +1,676 @@
+from __future__ import annotations
+
+import threading
+import urllib.parse
+import webbrowser
+from pathlib import Path
+
+import gi
+
+gi.require_version("Gdk", "4.0")
+gi.require_version("Gtk", "4.0")
+gi.require_version("Adw", "1")
+
+from gi.repository import Adw, Gdk, Gio, GLib, Gtk
+
+from .backend import BackendError, FerrumBackend
+from .models import AlbumDetail, AlbumEntry, BandDetail, BandSummary, TrackEntry
+
+APP_ID = "io.github.prezdev.Ferrum"
+
+SEARCH_TYPES = [
+    ("Band name", "BAND_NAME"),
+    ("Music genre", "MUSIC_GENRE"),
+    ("Themes", "THEMES"),
+    ("Album title", "ALBUM_TITLE"),
+    ("Song title", "SONG_TITLE"),
+    ("Label", "LABEL"),
+    ("Artist", "ARTIST"),
+    ("User profile", "USER_PROFILE"),
+    ("Google", "GOOGLE"),
+]
+
+PROVIDERS = [
+    ("YouTube Music", "youtube_music"),
+    ("YouTube", "youtube"),
+]
+
+
+def _append_classes(widget: Gtk.Widget, *classes: str) -> Gtk.Widget:
+    for css_class in classes:
+        widget.add_css_class(css_class)
+    return widget
+
+
+class AlbumWindow(Adw.ApplicationWindow):
+    def __init__(
+        self,
+        app: Adw.Application,
+        album: AlbumDetail,
+        band_name: str,
+        provider_dropdown: Gtk.DropDown,
+    ) -> None:
+        super().__init__(application=app, title=album.title, default_width=720, default_height=640)
+        self.album = album
+        self.band_name = band_name
+        self.provider_dropdown = provider_dropdown
+
+        toolbar = Adw.ToolbarView()
+        header = Adw.HeaderBar()
+        toolbar.add_top_bar(header)
+
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
+        content.set_margin_top(24)
+        content.set_margin_bottom(24)
+        content.set_margin_start(24)
+        content.set_margin_end(24)
+
+        hero = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        hero.add_css_class("card")
+        hero.add_css_class("hero-card")
+        hero.set_margin_bottom(6)
+
+        title = Gtk.Label(label=album.title, xalign=0)
+        title.set_wrap(True)
+        title.add_css_class("title-2")
+
+        subtitle = Gtk.Label(
+            label="  •  ".join(filter(None, [album.type, album.release_date, album.label])),
+            xalign=0,
+        )
+        subtitle.set_wrap(True)
+        subtitle.add_css_class("dim-label")
+
+        actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        open_album = Gtk.Button(label="Open in Metal Archives")
+        open_album.add_css_class("pill")
+        open_album.connect("clicked", lambda *_: webbrowser.open(album.url))
+        actions.append(open_album)
+
+        hero.append(title)
+        hero.append(subtitle)
+        hero.append(actions)
+
+        tracks_box = Gtk.ListBox()
+        tracks_box.add_css_class("boxed-list")
+        tracks_box.set_selection_mode(Gtk.SelectionMode.NONE)
+
+        for track in album.tracks:
+            tracks_box.append(self._build_track_row(track))
+
+        content.append(hero)
+        content.append(_append_classes(Gtk.Label(label="Tracklist", xalign=0), "heading"))
+        content.append(tracks_box)
+
+        scroller = Gtk.ScrolledWindow()
+        scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        scroller.set_child(content)
+
+        toolbar.set_content(scroller)
+        self.set_content(toolbar)
+
+    def _build_track_row(self, track: TrackEntry) -> Gtk.ListBoxRow:
+        row = Gtk.ListBoxRow()
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        box.set_margin_top(10)
+        box.set_margin_bottom(10)
+        box.set_margin_start(12)
+        box.set_margin_end(12)
+
+        left = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        left.set_hexpand(True)
+
+        heading = Gtk.Label(
+            label=f"{track.number}. {track.title}" if track.number else track.title,
+            xalign=0,
+        )
+        heading.set_wrap(True)
+        heading.add_css_class("track-title")
+
+        duration = Gtk.Label(label=track.duration or "Unknown length", xalign=0)
+        duration.add_css_class("dim-label")
+
+        left.append(heading)
+        left.append(duration)
+
+        button = Gtk.Button(icon_name="media-playback-start-symbolic")
+        button.add_css_class("circular")
+        button.set_tooltip_text("Search track in music provider")
+        button.connect("clicked", lambda *_: self._open_track(track))
+
+        box.append(left)
+        box.append(button)
+        row.set_child(box)
+        return row
+
+    def _open_track(self, track: TrackEntry) -> None:
+        query = " ".join(value for value in [self.band_name, track.title, self.album.title] if value)
+        provider = PROVIDERS[self.provider_dropdown.get_selected()][1]
+        encoded = urllib.parse.quote(query)
+        if provider == "youtube":
+            url = f"https://www.youtube.com/results?search_query={encoded}"
+        else:
+            url = f"https://music.youtube.com/search?q={encoded}"
+        webbrowser.open(url)
+
+
+class FerrumWindow(Adw.ApplicationWindow):
+    def __init__(self, app: Adw.Application) -> None:
+        super().__init__(application=app, title="Ferrum", default_width=1320, default_height=860)
+        self.app = app
+        self.backend = FerrumBackend()
+        self.results: list[BandSummary] = []
+        self.selected_band: BandDetail | None = None
+
+        self.toast_overlay = Adw.ToastOverlay()
+        toolbar = Adw.ToolbarView()
+        header = Adw.HeaderBar()
+
+        title_widget = Adw.WindowTitle(title="Ferrum", subtitle="Metal Archives in a Linux-native shell")
+        header.set_title_widget(title_widget)
+        toolbar.add_top_bar(header)
+
+        main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
+        main_box.set_margin_top(18)
+        main_box.set_margin_bottom(18)
+        main_box.set_margin_start(18)
+        main_box.set_margin_end(18)
+
+        main_box.append(self._build_search_surface())
+        main_box.append(self._build_split_view())
+
+        toolbar.set_content(main_box)
+        self.toast_overlay.set_child(toolbar)
+        self.set_content(self.toast_overlay)
+
+    def _build_search_surface(self) -> Gtk.Widget:
+        surface = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        surface.add_css_class("card")
+        surface.add_css_class("search-surface")
+
+        controls = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+
+        self.query_entry = Gtk.SearchEntry()
+        self.query_entry.set_hexpand(True)
+        self.query_entry.set_placeholder_text("Try: Bathory, funeral doom, Chile, cosmic themes…")
+        self.query_entry.connect("activate", lambda *_: self.on_search())
+
+        self.search_type_dropdown = Gtk.DropDown.new_from_strings([label for label, _ in SEARCH_TYPES])
+        self.search_type_dropdown.set_selected(0)
+
+        self.provider_dropdown = Gtk.DropDown.new_from_strings([label for label, _ in PROVIDERS])
+        self.provider_dropdown.set_selected(0)
+
+        self.search_button = Gtk.Button(label="Search")
+        self.search_button.add_css_class("suggested-action")
+        self.search_button.connect("clicked", lambda *_: self.on_search())
+
+        controls.append(self.query_entry)
+        controls.append(self.search_type_dropdown)
+        controls.append(self.provider_dropdown)
+        controls.append(self.search_button)
+
+        surface.append(controls)
+        return surface
+
+    def _build_split_view(self) -> Gtk.Widget:
+        pane = Gtk.Paned.new(Gtk.Orientation.HORIZONTAL)
+        pane.set_wide_handle(True)
+        pane.set_position(420)
+
+        pane.set_start_child(self._build_results_panel())
+        pane.set_end_child(self._build_detail_panel())
+        return pane
+
+    def _build_results_panel(self) -> Gtk.Widget:
+        wrapper = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        wrapper.add_css_class("card")
+
+        heading = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        heading_label = Gtk.Label(label="Results", xalign=0)
+        heading_label.add_css_class("title-4")
+        heading_label.set_hexpand(True)
+
+        self.results_count = Gtk.Label(label="No results yet", xalign=1)
+        self.results_count.add_css_class("dim-label")
+
+        heading.append(heading_label)
+        heading.append(self.results_count)
+
+        self.results_stack = Gtk.Stack()
+        self.results_stack.set_vexpand(True)
+
+        empty = Adw.StatusPage(
+            title="Start with a band, genre or theme",
+            description="Search results will appear here and load band details on selection.",
+            icon_name="system-search-symbolic",
+        )
+
+        self.results_list = Gtk.ListBox()
+        self.results_list.add_css_class("boxed-list")
+        self.results_list.set_selection_mode(Gtk.SelectionMode.SINGLE)
+        self.results_list.connect("row-activated", self.on_result_activated)
+
+        scroller = Gtk.ScrolledWindow()
+        scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        scroller.set_child(self.results_list)
+
+        self.results_stack.add_named(empty, "empty")
+        self.results_stack.add_named(scroller, "list")
+        self.results_stack.set_visible_child_name("empty")
+
+        wrapper.append(heading)
+        wrapper.append(self.results_stack)
+        return wrapper
+
+    def _build_detail_panel(self) -> Gtk.Widget:
+        self.detail_stack = Gtk.Stack()
+        self.detail_stack.set_vexpand(True)
+
+        placeholder = Adw.StatusPage(
+            title="Band details live here",
+            description="Pick a result to inspect line-up context, metadata and discography.",
+            icon_name="audio-x-generic-symbolic",
+        )
+
+        self.detail_content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
+        self.detail_content.set_margin_top(6)
+        self.detail_content.set_margin_bottom(6)
+        self.detail_content.set_margin_start(6)
+        self.detail_content.set_margin_end(6)
+
+        scroller = Gtk.ScrolledWindow()
+        scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        scroller.set_child(self.detail_content)
+
+        self.detail_stack.add_named(placeholder, "empty")
+        self.detail_stack.add_named(scroller, "detail")
+        self.detail_stack.set_visible_child_name("empty")
+        return self.detail_stack
+
+    def on_search(self) -> None:
+        query = self.query_entry.get_text().strip()
+        if not query:
+            self.toast("Write something first.")
+            return
+
+        self.search_button.set_sensitive(False)
+        self.results_count.set_text("Searching…")
+        self.results_stack.set_visible_child_name("empty")
+        self.clear_detail()
+
+        _, search_type = SEARCH_TYPES[self.search_type_dropdown.get_selected()]
+        self.run_task(
+            lambda: self.backend.search(query, search_type),
+            self.populate_results,
+        )
+
+    def on_result_activated(self, _listbox: Gtk.ListBox, row: Gtk.ListBoxRow) -> None:
+        band = getattr(row, "band", None)
+        if not band or not band.profile_url:
+            self.toast("That result has no profile page.")
+            return
+
+        self.results_list.set_sensitive(False)
+        self.run_task(
+            lambda: self.backend.get_band(band.profile_url),
+            self.show_band_detail,
+        )
+
+    def on_album_activated(self, _listbox: Gtk.ListBox, row: Gtk.ListBoxRow) -> None:
+        album = getattr(row, "album", None)
+        if not album or not album.url:
+            self.toast("That album has no page.")
+            return
+
+        self.run_task(
+            lambda: self.backend.get_album(album.url),
+            self.open_album_window,
+        )
+
+    def run_task(self, worker, on_success) -> None:
+        def runner() -> None:
+            try:
+                result = worker()
+            except Exception as exc:
+                GLib.idle_add(self.on_task_error, exc)
+                return
+            GLib.idle_add(on_success, result)
+
+        threading.Thread(target=runner, daemon=True).start()
+
+    def on_task_error(self, exc: Exception) -> bool:
+        self.search_button.set_sensitive(True)
+        self.results_list.set_sensitive(True)
+        message = str(exc)
+        if isinstance(exc, BackendError) and "moment" in message.lower():
+            message = "Metal Archives is still behind Cloudflare. Refresh ~/.config/ferrum/session.json first."
+        self.toast(message)
+        return False
+
+    def populate_results(self, results: list[BandSummary]) -> bool:
+        self.search_button.set_sensitive(True)
+        self.results_list.set_sensitive(True)
+        self.results = results
+        self.clear_listbox(self.results_list)
+
+        if not results:
+            self.results_count.set_text("0 matches")
+            self.results_stack.set_visible_child_name("empty")
+            self.toast("No results.")
+            return False
+
+        for band in results:
+            row = self.build_result_row(band)
+            row.band = band
+            self.results_list.append(row)
+
+        self.results_count.set_text(f"{len(results)} matches")
+        self.results_stack.set_visible_child_name("list")
+        return False
+
+    def build_result_row(self, band: BandSummary) -> Gtk.ListBoxRow:
+        row = Gtk.ListBoxRow()
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        box.set_margin_top(12)
+        box.set_margin_bottom(12)
+        box.set_margin_start(14)
+        box.set_margin_end(14)
+
+        title = Gtk.Label(label=band.name or "Unknown band", xalign=0)
+        title.add_css_class("title-4")
+
+        summary = Gtk.Label(
+            label="  •  ".join(filter(None, [band.country, band.genre, band.status])),
+            xalign=0,
+        )
+        summary.add_css_class("dim-label")
+        summary.set_wrap(True)
+
+        box.append(title)
+        box.append(summary)
+        row.set_child(box)
+        return row
+
+    def show_band_detail(self, detail: BandDetail) -> bool:
+        self.search_button.set_sensitive(True)
+        self.results_list.set_sensitive(True)
+        self.selected_band = detail
+        self.clear_box(self.detail_content)
+
+        hero = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        hero.add_css_class("card")
+        hero.add_css_class("hero-card")
+
+        title = Gtk.Label(label=detail.name or "Unknown band", xalign=0)
+        title.add_css_class("title-1")
+        title.set_wrap(True)
+
+        chips = Gtk.FlowBox()
+        chips.set_selection_mode(Gtk.SelectionMode.NONE)
+        chips.set_max_children_per_line(6)
+        chips.set_row_spacing(8)
+        chips.set_column_spacing(8)
+        for value in [detail.country, detail.status, detail.genre]:
+            if value:
+                chips.insert(self.build_chip(value), -1)
+
+        hero_actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        if detail.profile_url:
+            profile_button = Gtk.Button(label="Open in browser")
+            profile_button.add_css_class("pill")
+            profile_button.connect("clicked", lambda *_: webbrowser.open(detail.profile_url))
+            hero_actions.append(profile_button)
+
+        hero.append(title)
+        hero.append(chips)
+        hero.append(hero_actions)
+
+        metadata = Gtk.Grid(column_spacing=18, row_spacing=10)
+        metadata.add_css_class("card")
+        metadata.attach(self.meta_key("Country"), 0, 0, 1, 1)
+        metadata.attach(self.meta_value(detail.country), 1, 0, 1, 1)
+        metadata.attach(self.meta_key("Location"), 0, 1, 1, 1)
+        metadata.attach(self.meta_value(detail.location), 1, 1, 1, 1)
+        metadata.attach(self.meta_key("Formed in"), 0, 2, 1, 1)
+        metadata.attach(self.meta_value(detail.formed_in), 1, 2, 1, 1)
+        metadata.attach(self.meta_key("Years active"), 0, 3, 1, 1)
+        metadata.attach(self.meta_value(detail.years_active), 1, 3, 1, 1)
+        metadata.attach(self.meta_key("Themes"), 0, 4, 1, 1)
+        metadata.attach(self.meta_value(detail.lyrical_themes), 1, 4, 1, 1)
+        metadata.attach(self.meta_key("Label"), 0, 5, 1, 1)
+        metadata.attach(self.meta_value(detail.label), 1, 5, 1, 1)
+
+        discography_title = Gtk.Label(label="Discography", xalign=0)
+        discography_title.add_css_class("title-3")
+
+        discography_list = Gtk.ListBox()
+        discography_list.add_css_class("boxed-list")
+        discography_list.set_selection_mode(Gtk.SelectionMode.SINGLE)
+        discography_list.connect("row-activated", self.on_album_activated)
+
+        if detail.discography:
+            for album in detail.discography:
+                row = self.build_album_row(album)
+                row.album = album
+                discography_list.append(row)
+        else:
+            placeholder = Gtk.ListBoxRow()
+            placeholder.set_selectable(False)
+            empty_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+            empty_box.set_margin_top(14)
+            empty_box.set_margin_bottom(14)
+            empty_box.set_margin_start(14)
+            empty_box.set_margin_end(14)
+            empty_box.append(_append_classes(Gtk.Label(label="No discography loaded", xalign=0), "title-4"))
+            empty_box.append(_append_classes(Gtk.Label(label="This band page did not expose a release table.", xalign=0), "dim-label"))
+            placeholder.set_child(empty_box)
+            discography_list.append(placeholder)
+
+        self.detail_content.append(hero)
+        self.detail_content.append(metadata)
+        self.detail_content.append(discography_title)
+        self.detail_content.append(discography_list)
+        self.detail_stack.set_visible_child_name("detail")
+        return False
+
+    def build_album_row(self, album: AlbumEntry) -> Gtk.ListBoxRow:
+        row = Gtk.ListBoxRow()
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        box.set_margin_top(12)
+        box.set_margin_bottom(12)
+        box.set_margin_start(14)
+        box.set_margin_end(14)
+
+        text_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        text_box.set_hexpand(True)
+
+        title = Gtk.Label(label=album.title or "Untitled release", xalign=0)
+        title.add_css_class("title-4")
+        title.set_wrap(True)
+
+        summary = Gtk.Label(
+            label="  •  ".join(filter(None, [album.year, album.type])),
+            xalign=0,
+        )
+        summary.add_css_class("dim-label")
+
+        text_box.append(title)
+        text_box.append(summary)
+
+        if album.url:
+            arrow = Gtk.Image.new_from_icon_name("go-next-symbolic")
+            arrow.add_css_class("dim-label")
+            box.append(text_box)
+            box.append(arrow)
+        else:
+            text_box.append(_append_classes(Gtk.Label(label="No dedicated album page", xalign=0), "dim-label"))
+            box.append(text_box)
+            row.set_activatable(False)
+            row.set_selectable(False)
+
+        row.set_child(box)
+        return row
+
+    def open_album_window(self, album: AlbumDetail) -> bool:
+        if not self.selected_band:
+            self.toast("Band context is missing.")
+            return False
+        window = AlbumWindow(self.app, album, self.selected_band.name, self.provider_dropdown)
+        window.present()
+        return False
+
+    def build_chip(self, text: str) -> Gtk.Widget:
+        label = Gtk.Label(label=text, xalign=0)
+        label.add_css_class("chip")
+        return label
+
+    def meta_key(self, text: str) -> Gtk.Widget:
+        label = Gtk.Label(label=text, xalign=0)
+        label.add_css_class("meta-key")
+        return label
+
+    def meta_value(self, text: str) -> Gtk.Widget:
+        label = Gtk.Label(label=text or "—", xalign=0)
+        label.set_wrap(True)
+        label.add_css_class("meta-value")
+        return label
+
+    def clear_detail(self) -> None:
+        self.selected_band = None
+        self.clear_box(self.detail_content)
+        self.detail_stack.set_visible_child_name("empty")
+
+    def clear_listbox(self, listbox: Gtk.ListBox) -> None:
+        row = listbox.get_first_child()
+        while row is not None:
+            next_row = row.get_next_sibling()
+            listbox.remove(row)
+            row = next_row
+
+    def clear_box(self, box: Gtk.Box) -> None:
+        child = box.get_first_child()
+        while child is not None:
+            next_child = child.get_next_sibling()
+            box.remove(child)
+            child = next_child
+
+    def toast(self, message: str) -> None:
+        self.toast_overlay.add_toast(Adw.Toast.new(GLib.markup_escape_text(message)))
+
+
+class StartupWindow(Adw.ApplicationWindow):
+    def __init__(self, app: Adw.Application) -> None:
+        super().__init__(application=app, title="Ferrum", default_width=640, default_height=420)
+        self.app = app
+        self.backend = FerrumBackend()
+
+        toolbar = Adw.ToolbarView()
+        header = Adw.HeaderBar()
+        toolbar.add_top_bar(header)
+
+        self.stack = Gtk.Stack()
+
+        loading_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
+        loading_box.set_valign(Gtk.Align.CENTER)
+        loading_box.set_halign(Gtk.Align.CENTER)
+        loading_box.set_margin_top(32)
+        loading_box.set_margin_bottom(32)
+        loading_box.set_margin_start(32)
+        loading_box.set_margin_end(32)
+
+        spinner = Gtk.Spinner()
+        spinner.set_spinning(True)
+        spinner.set_size_request(48, 48)
+
+        title = Gtk.Label(label="Starting Ferrum backend", xalign=0.5)
+        title.add_css_class("title-2")
+
+        subtitle = Gtk.Label(
+            label="Launching the Java scraper and waiting for the local API to become available.",
+            xalign=0.5,
+        )
+        subtitle.set_wrap(True)
+        subtitle.set_justify(Gtk.Justification.CENTER)
+        subtitle.add_css_class("dim-label")
+
+        loading_box.append(spinner)
+        loading_box.append(title)
+        loading_box.append(subtitle)
+
+        error_page = Adw.StatusPage(
+            title="Backend did not start",
+            description="Ferrum could not reach the local backend API.",
+            icon_name="dialog-error-symbolic",
+        )
+        retry_button = Gtk.Button(label="Retry")
+        retry_button.add_css_class("suggested-action")
+        retry_button.connect("clicked", lambda *_: self.start_backend_bootstrap())
+        error_page.set_child(retry_button)
+
+        self.stack.add_named(loading_box, "loading")
+        self.stack.add_named(error_page, "error")
+        self.stack.set_visible_child_name("loading")
+
+        toolbar.set_content(self.stack)
+        self.set_content(toolbar)
+        self.start_backend_bootstrap()
+
+    def start_backend_bootstrap(self) -> None:
+        self.stack.set_visible_child_name("loading")
+
+        def runner() -> None:
+            try:
+                self.backend.wait_until_ready(timeout_seconds=90)
+            except Exception as exc:
+                GLib.idle_add(self.on_backend_boot_failed, exc)
+                return
+            GLib.idle_add(self.on_backend_ready)
+
+        threading.Thread(target=runner, daemon=True).start()
+
+    def on_backend_ready(self) -> bool:
+        main_window = FerrumWindow(self.app)
+        main_window.present()
+        self.close()
+        return False
+
+    def on_backend_boot_failed(self, exc: Exception) -> bool:
+        page = self.stack.get_child_by_name("error")
+        if isinstance(page, Adw.StatusPage):
+            page.set_description(str(exc))
+        self.stack.set_visible_child_name("error")
+        return False
+
+
+class FerrumApp(Adw.Application):
+    def __init__(self) -> None:
+        super().__init__(application_id=APP_ID, flags=Gio.ApplicationFlags.DEFAULT_FLAGS)
+        self.connect("activate", self.on_activate)
+
+    def on_activate(self, *_args) -> None:
+        Adw.StyleManager.get_default().set_color_scheme(Adw.ColorScheme.FORCE_LIGHT)
+        self.load_css()
+        window = self.props.active_window
+        if window is None:
+            window = StartupWindow(self)
+        window.present()
+
+    def load_css(self) -> None:
+        provider = Gtk.CssProvider()
+        stylesheet = Path(__file__).resolve().parent.parent / "style.css"
+        provider.load_from_path(str(stylesheet))
+        Gtk.StyleContext.add_provider_for_display(
+            Gdk.Display.get_default(),
+            provider,
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
+        )
+
+
+def main() -> None:
+    app = FerrumApp()
+    app.run(None)
+
+
+if __name__ == "__main__":
+    main()

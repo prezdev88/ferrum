@@ -1,0 +1,1 @@
+"""Ferrum GNOME frontend package."""

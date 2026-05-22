@@ -5,7 +5,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "ferrum.ui")
 public class FerrumUiProperties {
 
-    private Type type = Type.LANTERNA;
+    private Type type = Type.API;
     private MusicSearchProvider musicSearchProvider = MusicSearchProvider.YOUTUBE_MUSIC;
     /**
      * UI language used on startup. Supported: "es", "en".
@@ -49,8 +49,11 @@ public class FerrumUiProperties {
     }
 
     public enum Type {
+        API,
         LANTERNA,
-        CONSOLE
+        CONSOLE,
+        JSON,
+        REFRESH_SESSION
     }
 
     public enum MusicSearchProvider {
