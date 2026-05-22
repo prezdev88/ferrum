@@ -11,6 +11,10 @@ public class FerrumUiProperties {
      * UI language used on startup. Supported: "es", "en".
      */
     private String language;
+    /**
+     * Lanterna theme used by the TUI. Supported: default, bigsnake, businessmachine, conqueror, defrost, blaster.
+     */
+    private Theme theme = Theme.DEFAULT;
 
     public Type getType() {
         return type;
@@ -36,6 +40,14 @@ public class FerrumUiProperties {
         this.language = language;
     }
 
+    public Theme getTheme() {
+        return theme;
+    }
+
+    public void setTheme(Theme theme) {
+        this.theme = theme;
+    }
+
     public enum Type {
         LANTERNA,
         CONSOLE
@@ -44,5 +56,24 @@ public class FerrumUiProperties {
     public enum MusicSearchProvider {
         YOUTUBE,
         YOUTUBE_MUSIC
+    }
+
+    public enum Theme {
+        DEFAULT("default"),
+        BIGSNAKE("bigsnake"),
+        BUSINESSMACHINE("businessmachine"),
+        CONQUEROR("conqueror"),
+        DEFROST("defrost"),
+        BLASTER("blaster");
+
+        private final String propertyValue;
+
+        Theme(String propertyValue) {
+            this.propertyValue = propertyValue;
+        }
+
+        public String propertyValue() {
+            return propertyValue;
+        }
     }
 }

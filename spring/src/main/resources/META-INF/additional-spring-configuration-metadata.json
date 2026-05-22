@@ -19,6 +19,12 @@
       "defaultValue": "en"
     },
     {
+      "name": "ferrum.ui.theme",
+      "type": "cl.tracktec.ferrum.presentation.FerrumUiProperties$Theme",
+      "description": "Tema de Lanterna usado por la TUI. Soporta: default, bigsnake, businessmachine, conqueror, defrost, blaster.",
+      "defaultValue": "default"
+    },
+    {
       "name": "ferrum.browser.visible",
       "type": "java.lang.Boolean",
       "description": "Si es true, abre el navegador de Playwright visible (no headless).",
@@ -91,6 +97,35 @@
         {
           "value": "en",
           "description": "Inicia la UI en ingles."
+        }
+      ]
+    },
+    {
+      "name": "ferrum.ui.theme",
+      "values": [
+        {
+          "value": "default",
+          "description": "Tema base por defecto de Lanterna."
+        },
+        {
+          "value": "bigsnake",
+          "description": "Tema Lanterna BigSnake."
+        },
+        {
+          "value": "businessmachine",
+          "description": "Tema Lanterna BusinessMachine."
+        },
+        {
+          "value": "conqueror",
+          "description": "Tema Lanterna Conqueror."
+        },
+        {
+          "value": "defrost",
+          "description": "Tema Lanterna Defrost."
+        },
+        {
+          "value": "blaster",
+          "description": "Tema Lanterna Blaster."
         }
       ]
     }

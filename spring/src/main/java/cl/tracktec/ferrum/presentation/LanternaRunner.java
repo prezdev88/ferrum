@@ -7,9 +7,9 @@ import cl.tracktec.ferrum.core.domain.BandSummary;
 import cl.tracktec.ferrum.core.usecase.GetAlbumDetailsUseCase;
 import cl.tracktec.ferrum.core.usecase.GetBandDetailsUseCase;
 import cl.tracktec.ferrum.core.usecase.SearchBandsUseCase;
+import com.googlecode.lanterna.bundle.LanternaThemes;
 import com.googlecode.lanterna.SGR;
 import com.googlecode.lanterna.TerminalSize;
-import com.googlecode.lanterna.TextColor;
 import com.googlecode.lanterna.gui2.BasicWindow;
 import com.googlecode.lanterna.gui2.Borders;
 import com.googlecode.lanterna.gui2.Button;
@@ -41,9 +41,9 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.Locale;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 @Component
 @ConditionalOnProperty(prefix = "ferrum.ui", name = "type", havingValue = "lanterna", matchIfMissing = true)
@@ -89,6 +89,7 @@ public class LanternaRunner implements FerrumUi {
             screen.setCursorPosition(null);
 
             gui = new MultiWindowTextGUI(screen);
+            applyConfiguredTheme();
             initI18n();
 
             window = new BasicWindow(i18n.t("app.window_title")) {
@@ -143,10 +144,8 @@ public class LanternaRunner implements FerrumUi {
     private Panel createHeader() {
         Panel header = new Panel(new LinearLayout(Direction.VERTICAL));
         header.addComponent(new Label(i18n.t("app.header_title"))
-                .addStyle(SGR.BOLD)
-                .setForegroundColor(TextColor.ANSI.RED));
-        header.addComponent(new Label(i18n.t("app.header_subtitle"))
-                .setForegroundColor(TextColor.ANSI.WHITE_BRIGHT));
+                .addStyle(SGR.BOLD));
+        header.addComponent(new Label(i18n.t("app.header_subtitle")));
         return header;
     }
 
@@ -207,9 +206,19 @@ public class LanternaRunner implements FerrumUi {
 
     private Panel createFooter() {
         Panel footer = new Panel(new LinearLayout(Direction.VERTICAL));
-        footer.addComponent(new Label(i18n.t("footer.help"))
-                .setForegroundColor(TextColor.ANSI.WHITE));
+        footer.addComponent(new Label(i18n.t("footer.help")));
         return footer;
+    }
+
+    private void applyConfiguredTheme() {
+        FerrumUiProperties.Theme configuredTheme = ferrumUiProperties.getTheme();
+        if (configuredTheme == null) {
+            gui.setTheme(LanternaThemes.getDefaultTheme());
+            return;
+        }
+
+        var theme = LanternaThemes.getRegisteredTheme(configuredTheme.propertyValue().toLowerCase(Locale.ROOT));
+        gui.setTheme(theme != null ? theme : LanternaThemes.getDefaultTheme());
     }
 
     private void requestApplicationClose() {
