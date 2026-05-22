@@ -1,30 +1,6 @@
 {
   "properties": [
     {
-      "name": "ferrum.ui.type",
-      "type": "java.lang.String",
-      "description": "Selecciona la implementacion de interfaz de usuario de Ferrum.",
-      "defaultValue": "api"
-    },
-    {
-      "name": "ferrum.ui.music-search-provider",
-      "type": "java.lang.String",
-      "description": "Selecciona el servicio que se abrira al presionar Enter sobre un track.",
-      "defaultValue": "youtube_music"
-    },
-    {
-      "name": "ferrum.ui.language",
-      "type": "java.lang.String",
-      "description": "Idioma de la UI al iniciar. Soporta: es, en.",
-      "defaultValue": "en"
-    },
-    {
-      "name": "ferrum.ui.theme",
-      "type": "cl.tracktec.ferrum.presentation.FerrumUiProperties$Theme",
-      "description": "Tema de Lanterna usado por la TUI. Soporta: default, bigsnake, businessmachine, conqueror, defrost, blaster.",
-      "defaultValue": "default"
-    },
-    {
       "name": "ferrum.browser.visible",
       "type": "java.lang.Boolean",
       "description": "Si es true, abre el navegador de Playwright visible (no headless).",
@@ -60,86 +36,5 @@
       "defaultValue": "30d"
     }
   ],
-  "hints": [
-    {
-      "name": "ferrum.ui.type",
-      "values": [
-        {
-          "value": "api",
-          "description": "Expone Ferrum como backend HTTP."
-        },
-        {
-          "value": "lanterna",
-          "description": "Usa la interfaz TUI basada en Lanterna."
-        },
-        {
-          "value": "console",
-          "description": "Usa la interfaz de consola clasica."
-        },
-        {
-          "value": "json",
-          "description": "Usa la interfaz JSON para integracion con otras apps."
-        },
-        {
-          "value": "refresh_session",
-          "description": "Solo renueva la sesion de Metal Archives y luego sale."
-        }
-      ]
-    },
-    {
-      "name": "ferrum.ui.music-search-provider",
-      "values": [
-        {
-          "value": "youtube_music",
-          "description": "Abre la busqueda del track en YouTube Music."
-        },
-        {
-          "value": "youtube",
-          "description": "Abre la busqueda del track en YouTube."
-        }
-      ]
-    },
-    {
-      "name": "ferrum.ui.language",
-      "values": [
-        {
-          "value": "es",
-          "description": "Inicia la UI en espanol."
-        },
-        {
-          "value": "en",
-          "description": "Inicia la UI en ingles."
-        }
-      ]
-    },
-    {
-      "name": "ferrum.ui.theme",
-      "values": [
-        {
-          "value": "default",
-          "description": "Tema base por defecto de Lanterna."
-        },
-        {
-          "value": "bigsnake",
-          "description": "Tema Lanterna BigSnake."
-        },
-        {
-          "value": "businessmachine",
-          "description": "Tema Lanterna BusinessMachine."
-        },
-        {
-          "value": "conqueror",
-          "description": "Tema Lanterna Conqueror."
-        },
-        {
-          "value": "defrost",
-          "description": "Tema Lanterna Defrost."
-        },
-        {
-          "value": "blaster",
-          "description": "Tema Lanterna Blaster."
-        }
-      ]
-    }
-  ]
+  "hints": []
 }

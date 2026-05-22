@@ -1,4 +1,4 @@
-package cl.tracktec.ferrum.core.cache;
+package cl.tracktec.ferrum.infrastructure.cache;
 
 public enum CacheNamespace {
     SEARCH("search"),

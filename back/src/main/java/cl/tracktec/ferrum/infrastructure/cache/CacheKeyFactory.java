@@ -1,6 +1,6 @@
-package cl.tracktec.ferrum.core.cache;
+package cl.tracktec.ferrum.infrastructure.cache;
 
-import cl.tracktec.ferrum.core.domain.BandSearchType;
+import cl.tracktec.ferrum.domain.BandSearchType;
 import org.springframework.stereotype.Component;
 
 import java.util.Locale;

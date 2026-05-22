@@ -1,12 +1,12 @@
-package cl.tracktec.ferrum.presentation;
+package cl.tracktec.ferrum.infrastructure.api;
 
-import cl.tracktec.ferrum.core.domain.AlbumDetail;
-import cl.tracktec.ferrum.core.domain.BandDetail;
-import cl.tracktec.ferrum.core.domain.BandSearchType;
-import cl.tracktec.ferrum.core.domain.BandSummary;
-import cl.tracktec.ferrum.core.usecase.GetAlbumDetailsUseCase;
-import cl.tracktec.ferrum.core.usecase.GetBandDetailsUseCase;
-import cl.tracktec.ferrum.core.usecase.SearchBandsUseCase;
+import cl.tracktec.ferrum.application.usecase.GetAlbumDetailsUseCase;
+import cl.tracktec.ferrum.application.usecase.GetBandDetailsUseCase;
+import cl.tracktec.ferrum.application.usecase.SearchBandsUseCase;
+import cl.tracktec.ferrum.domain.AlbumDetail;
+import cl.tracktec.ferrum.domain.BandDetail;
+import cl.tracktec.ferrum.domain.BandSearchType;
+import cl.tracktec.ferrum.domain.BandSummary;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;

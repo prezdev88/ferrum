@@ -1,7 +1,7 @@
-package cl.tracktec.ferrum.core.port;
+package cl.tracktec.ferrum.application.port;
 
-import cl.tracktec.ferrum.core.cache.CacheDescriptor;
-import cl.tracktec.ferrum.core.cache.CachePayloadType;
+import cl.tracktec.ferrum.infrastructure.cache.CacheDescriptor;
+import cl.tracktec.ferrum.infrastructure.cache.CachePayloadType;
 
 import java.util.Optional;
 

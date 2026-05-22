@@ -1,14 +1,11 @@
-package cl.tracktec.ferrum.core.usecase;
+package cl.tracktec.ferrum.infrastructure.cache;
 
-import cl.tracktec.ferrum.core.cache.CacheDescriptor;
-import cl.tracktec.ferrum.core.cache.CachePayloadType;
-import cl.tracktec.ferrum.core.cache.CachePolicy;
-import cl.tracktec.ferrum.core.domain.AlbumDetail;
-import cl.tracktec.ferrum.core.domain.BandDetail;
-import cl.tracktec.ferrum.core.domain.BandSearchType;
-import cl.tracktec.ferrum.core.domain.BandSummary;
-import cl.tracktec.ferrum.core.port.BandSearchGateway;
-import cl.tracktec.ferrum.core.port.CacheStorePort;
+import cl.tracktec.ferrum.application.port.BandSearchGateway;
+import cl.tracktec.ferrum.application.port.CacheStorePort;
+import cl.tracktec.ferrum.domain.AlbumDetail;
+import cl.tracktec.ferrum.domain.BandDetail;
+import cl.tracktec.ferrum.domain.BandSearchType;
+import cl.tracktec.ferrum.domain.BandSummary;
 
 import java.util.List;
 import java.util.Optional;

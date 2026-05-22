@@ -1,10 +1,6 @@
 package cl.tracktec.ferrum.infrastructure.cache;
 
-import cl.tracktec.ferrum.core.cache.CacheDescriptor;
-import cl.tracktec.ferrum.core.cache.CacheEntry;
-import cl.tracktec.ferrum.core.cache.CacheNamespace;
-import cl.tracktec.ferrum.core.cache.CachePayloadType;
-import cl.tracktec.ferrum.core.port.CacheStorePort;
+import cl.tracktec.ferrum.application.port.CacheStorePort;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;

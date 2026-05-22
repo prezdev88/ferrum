@@ -1,4 +1,4 @@
-package cl.tracktec.ferrum.core.domain;
+package cl.tracktec.ferrum.domain;
 
 public record BandSummary(
         String name,

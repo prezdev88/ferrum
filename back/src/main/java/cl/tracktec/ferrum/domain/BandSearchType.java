@@ -1,4 +1,4 @@
-package cl.tracktec.ferrum.core.domain;
+package cl.tracktec.ferrum.domain;
 
 public enum BandSearchType {
     BAND_NAME("Band name", "band_name"),

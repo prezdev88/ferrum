@@ -1,13 +1,11 @@
-package cl.tracktec.ferrum.core.usecase;
+package cl.tracktec.ferrum.application.usecase;
 
-import cl.tracktec.ferrum.core.domain.BandSummary;
-import cl.tracktec.ferrum.core.domain.BandSearchType;
-import cl.tracktec.ferrum.core.port.BandSearchGateway;
-import org.springframework.stereotype.Service;
+import cl.tracktec.ferrum.application.port.BandSearchGateway;
+import cl.tracktec.ferrum.domain.BandSearchType;
+import cl.tracktec.ferrum.domain.BandSummary;
 
 import java.util.List;
 
-@Service
 public class SearchBandsUseCase {
 
     private final BandSearchGateway gateway;

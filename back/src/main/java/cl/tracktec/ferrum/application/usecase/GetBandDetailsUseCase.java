@@ -1,10 +1,8 @@
-package cl.tracktec.ferrum.core.usecase;
+package cl.tracktec.ferrum.application.usecase;
 
-import cl.tracktec.ferrum.core.domain.BandDetail;
-import cl.tracktec.ferrum.core.port.BandSearchGateway;
-import org.springframework.stereotype.Service;
+import cl.tracktec.ferrum.application.port.BandSearchGateway;
+import cl.tracktec.ferrum.domain.BandDetail;
 
-@Service
 public class GetBandDetailsUseCase {
 
     private final BandSearchGateway gateway;

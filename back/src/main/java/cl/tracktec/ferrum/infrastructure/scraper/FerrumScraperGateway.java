@@ -1,10 +1,10 @@
 package cl.tracktec.ferrum.infrastructure.scraper;
 
-import cl.tracktec.ferrum.core.domain.AlbumDetail;
-import cl.tracktec.ferrum.core.domain.BandDetail;
-import cl.tracktec.ferrum.core.domain.BandSearchType;
-import cl.tracktec.ferrum.core.domain.BandSummary;
-import cl.tracktec.ferrum.core.port.BandSearchGateway;
+import cl.tracktec.ferrum.application.port.BandSearchGateway;
+import cl.tracktec.ferrum.domain.AlbumDetail;
+import cl.tracktec.ferrum.domain.BandDetail;
+import cl.tracktec.ferrum.domain.BandSearchType;
+import cl.tracktec.ferrum.domain.BandSummary;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microsoft.playwright.*;

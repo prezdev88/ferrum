@@ -1,4 +1,4 @@
-package cl.tracktec.ferrum.core.domain;
+package cl.tracktec.ferrum.domain;
 
 import java.util.List;
 
