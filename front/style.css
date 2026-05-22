@@ -40,6 +40,11 @@ window {
   min-height: 168px;
 }
 
+.discography-artwork {
+  min-width: 64px;
+  min-height: 64px;
+}
+
 .card {
   border-radius: 22px;
   padding: 18px;

@@ -18,6 +18,7 @@ class AlbumEntry:
     type: str
     year: str
     url: str
+    image_url: str
 
 
 @dataclass(slots=True)

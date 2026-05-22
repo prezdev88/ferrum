@@ -55,7 +55,7 @@ public class CachedBandSearchGateway implements BandSearchGateway {
                 BAND_PAYLOAD_TYPE,
                 () -> remoteGateway.getDetails(profileUrl)
         );
-        return remoteDetails;
+        return enrichDiscographyWithCachedAlbumImages(remoteDetails);
     }
 
     @Override
@@ -86,6 +86,49 @@ public class CachedBandSearchGateway implements BandSearchGateway {
         T remotePayload = remoteLoader.load();
         cacheStore.write(descriptor, remotePayload);
         return remotePayload;
+    }
+
+    private BandDetail enrichDiscographyWithCachedAlbumImages(BandDetail bandDetail) {
+        List<BandDetail.AlbumEntry> originalDiscography = bandDetail.discography();
+        List<BandDetail.AlbumEntry> enrichedDiscography = originalDiscography.stream()
+                .map(this::enrichAlbumEntryWithCachedImage)
+                .toList();
+
+        return new BandDetail(
+                bandDetail.name(),
+                bandDetail.imageUrl(),
+                bandDetail.country(),
+                bandDetail.location(),
+                bandDetail.status(),
+                bandDetail.formedIn(),
+                bandDetail.yearsActive(),
+                bandDetail.genre(),
+                bandDetail.lyricalThemes(),
+                bandDetail.label(),
+                bandDetail.profileUrl(),
+                enrichedDiscography
+        );
+    }
+
+    private BandDetail.AlbumEntry enrichAlbumEntryWithCachedImage(BandDetail.AlbumEntry albumEntry) {
+        if (albumEntry.url().isBlank()) {
+            return albumEntry;
+        }
+
+        CacheDescriptor descriptor = cachePolicy.forAlbum(albumEntry.url());
+        Optional<AlbumDetail> cachedAlbum = cacheStore.read(descriptor, ALBUM_PAYLOAD_TYPE);
+        if (cachedAlbum.isEmpty()) {
+            return albumEntry;
+        }
+
+        String imageUrl = cachedAlbum.get().imageUrl();
+        return new BandDetail.AlbumEntry(
+                albumEntry.title(),
+                albumEntry.type(),
+                albumEntry.year(),
+                albumEntry.url(),
+                imageUrl
+        );
     }
 
     @FunctionalInterface

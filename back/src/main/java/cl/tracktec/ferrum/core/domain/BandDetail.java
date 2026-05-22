@@ -16,5 +16,5 @@ public record BandDetail(
         String profileUrl,
         List<AlbumEntry> discography
 ) {
-    public record AlbumEntry(String title, String type, String year, String url) {}
+    public record AlbumEntry(String title, String type, String year, String url, String imageUrl) {}
 }

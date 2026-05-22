@@ -337,7 +337,8 @@ public class FerrumScraperGateway implements BandSearchGateway {
                             albumTitle,
                             cols.get(1).text(),
                             cols.get(2).text(),
-                            albumUrl
+                            albumUrl,
+                            ""
                     ));
                 }
             }

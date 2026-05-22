@@ -56,6 +56,7 @@ class FerrumBackend:
                     type=item.get("type", ""),
                     year=item.get("year", ""),
                     url=item.get("url", ""),
+                    image_url=item.get("imageUrl", ""),
                 )
                 for item in payload.get("discography", [])
             ],

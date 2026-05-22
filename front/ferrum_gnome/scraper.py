@@ -422,6 +422,7 @@ class FerrumScraper:
                     type=cols[1].get_text(" ", strip=True),
                     year=cols[2].get_text(" ", strip=True),
                     url=urljoin(profile_url, anchor.get("href", "").strip()) if anchor else "",
+                    image_url="",
                 )
             )
 
@@ -497,7 +498,17 @@ class FerrumScraper:
     def _load_band_detail(self, payload: object) -> BandDetail:
         if not isinstance(payload, dict):
             raise ValueError("Invalid band payload")
-        discography = [AlbumEntry(**item) for item in payload.get("discography", [])]
+        discography = [
+            AlbumEntry(
+                title=item.get("title", ""),
+                type=item.get("type", ""),
+                year=item.get("year", ""),
+                url=item.get("url", ""),
+                image_url=item.get("image_url", ""),
+            )
+            for item in payload.get("discography", [])
+            if isinstance(item, dict)
+        ]
         return BandDetail(
             name=payload.get("name", ""),
             image_url=payload.get("image_url", ""),

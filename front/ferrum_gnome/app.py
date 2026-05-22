@@ -222,6 +222,7 @@ class FerrumWindow(Adw.ApplicationWindow):
         self.backend = FerrumBackend()
         self.results: list[BandSummary] = []
         self.selected_band: BandDetail | None = None
+        self.discography_list: Gtk.ListBox | None = None
 
         self.toast_overlay = Adw.ToastOverlay()
         toolbar = Adw.ToolbarView()
@@ -515,6 +516,7 @@ class FerrumWindow(Adw.ApplicationWindow):
         discography_list.add_css_class("boxed-list")
         discography_list.set_selection_mode(Gtk.SelectionMode.SINGLE)
         discography_list.connect("row-activated", self.on_album_activated)
+        self.discography_list = discography_list
 
         if detail.discography:
             for album in detail.discography:
@@ -543,11 +545,20 @@ class FerrumWindow(Adw.ApplicationWindow):
 
     def build_album_row(self, album: AlbumEntry) -> Gtk.ListBoxRow:
         row = Gtk.ListBoxRow()
+        if not album.url:
+            row.set_activatable(False)
+            row.set_selectable(False)
+        row.set_child(self.build_album_row_content(album))
+        return row
+
+    def build_album_row_content(self, album: AlbumEntry) -> Gtk.Widget:
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
         box.set_margin_top(12)
         box.set_margin_bottom(12)
         box.set_margin_start(14)
         box.set_margin_end(14)
+
+        artwork = self.build_remote_artwork(album.image_url, 64, "discography-artwork")
 
         text_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         text_box.set_hexpand(True)
@@ -564,6 +575,7 @@ class FerrumWindow(Adw.ApplicationWindow):
 
         text_box.append(title)
         text_box.append(summary)
+        box.append(artwork)
 
         if album.url:
             arrow = Gtk.Image.new_from_icon_name("go-next-symbolic")
@@ -573,19 +585,38 @@ class FerrumWindow(Adw.ApplicationWindow):
         else:
             text_box.append(_append_classes(Gtk.Label(label="No dedicated album page", xalign=0), "dim-label"))
             box.append(text_box)
-            row.set_activatable(False)
-            row.set_selectable(False)
-
-        row.set_child(box)
-        return row
+        return box
 
     def open_album_window(self, album: AlbumDetail) -> bool:
         if not self.selected_band:
             self.toast("Band context is missing.")
             return False
+        self.refresh_discography_album(album)
         window = AlbumWindow(self.app, album, self.selected_band.name, self.provider_dropdown)
         window.present()
         return False
+
+    def refresh_discography_album(self, album: AlbumDetail) -> None:
+        if not self.selected_band:
+            return
+        if not album.url or not album.image_url:
+            return
+
+        for discography_album in self.selected_band.discography:
+            if discography_album.url == album.url:
+                discography_album.image_url = album.image_url
+                break
+
+        if self.discography_list is None:
+            return
+
+        row = self.discography_list.get_first_child()
+        while row is not None:
+            current_album = getattr(row, "album", None)
+            if current_album is not None and current_album.url == album.url:
+                row.set_child(self.build_album_row_content(current_album))
+                break
+            row = row.get_next_sibling()
 
     def build_chip(self, text: str) -> Gtk.Widget:
         label = Gtk.Label(label=text, xalign=0)
@@ -659,6 +690,7 @@ class FerrumWindow(Adw.ApplicationWindow):
 
     def clear_detail(self) -> None:
         self.selected_band = None
+        self.discography_list = None
         self.clear_box(self.detail_content)
         self.detail_stack.set_visible_child_name("empty")
 
