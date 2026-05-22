@@ -19,7 +19,7 @@ from .models import AlbumDetail, AlbumEntry, BandDetail, BandSummary, TrackEntry
 BASE_URL = "https://www.metal-archives.com/"
 SEARCH_URL = BASE_URL + "search?searchString={query}&type={search_type}"
 SESSION_FILE = Path.home() / ".config" / "ferrum" / "session.json"
-SPRING_DIR = Path(__file__).resolve().parents[2] / "spring"
+SPRING_DIR = Path(__file__).resolve().parents[2] / "back"
 
 SEARCH_TYPE_REQUESTS = {
     "BAND_NAME": "band_name",

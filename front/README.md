@@ -15,7 +15,7 @@ Frontend Linux nativo para Ferrum usando `GTK4` + `libadwaita`.
 Desde la raíz del repo:
 
 ```bash
-./gnome/run.sh
+./front/run.sh
 ```
 
 ## Requisitos
@@ -30,7 +30,7 @@ Desde la raíz del repo:
 La app GNOME consume el backend Java por HTTP. Eso significa:
 
 - la UI es Python/GTK
-- el backend Spring debe estar corriendo antes de abrir la UI
+- el backend Java debe estar corriendo antes de abrir la UI
 - el scraping y Cloudflare siguen en Java/Playwright
 
 ## Backend
@@ -38,7 +38,7 @@ La app GNOME consume el backend Java por HTTP. Eso significa:
 Levanta el backend primero:
 
 ```bash
-cd spring
+cd back
 java -jar target/ferrum-1.0.0.jar
 ```
 
