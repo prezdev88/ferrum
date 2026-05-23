@@ -231,6 +231,17 @@ window {
   background: #000000;
 }
 
+.settings-row {
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.settings-dialog-content {
+  background: transparent;
+}
+
 entry,
 searchentry,
 dropdown,

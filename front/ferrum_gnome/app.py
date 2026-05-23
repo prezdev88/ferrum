@@ -1283,6 +1283,7 @@ class FerrumApp(Adw.Application):
         dialog = self.create_modal_dialog("Settings", 520, 320)
 
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
+        content.add_css_class("settings-dialog-content")
         content.set_margin_top(20)
         content.set_margin_bottom(20)
         content.set_margin_start(20)
@@ -1310,8 +1311,8 @@ class FerrumApp(Adw.Application):
         provider_row.append(provider_dropdown)
 
         content.append(title)
-        content.append(_append_classes(theme_row, "card"))
-        content.append(_append_classes(provider_row, "card"))
+        content.append(_append_classes(theme_row, "settings-row"))
+        content.append(_append_classes(provider_row, "settings-row"))
 
         dialog.set_child(content)
         self.settings_dialog = dialog
