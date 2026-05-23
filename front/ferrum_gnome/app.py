@@ -441,6 +441,8 @@ class FerrumWindow(Adw.ApplicationWindow):
         self.last_submitted_search_type = SEARCH_TYPES[0][1]
         self.search_history_dialog: Adw.Dialog | None = None
         self.loading_dialog: LoadingDialog | None = None
+        self.discography_type_filter_values: list[str | None] = [None]
+        self.discography_type_filter_dropdown: Gtk.DropDown | None = None
 
         self.toast_overlay = Adw.ToastOverlay()
         toolbar = Adw.ToolbarView()
@@ -928,36 +930,96 @@ class FerrumWindow(Adw.ApplicationWindow):
         discography_title = Gtk.Label(label="Discography", xalign=0)
         discography_title.add_css_class("title-3")
 
+        discography_header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        discography_header.set_halign(Gtk.Align.FILL)
+        discography_header.set_hexpand(True)
+        discography_title.set_hexpand(True)
+        discography_header.append(discography_title)
+
+        self.discography_type_filter_values = self.resolve_discography_type_filters(detail.discography)
+        discography_filter_dropdown = Gtk.DropDown.new_from_strings(
+            self.resolve_discography_type_filter_labels(self.discography_type_filter_values)
+        )
+        discography_filter_dropdown.set_selected(0)
+        discography_filter_dropdown.connect("notify::selected", self.on_discography_type_filter_selected)
+        self.discography_type_filter_dropdown = discography_filter_dropdown
+        discography_header.append(discography_filter_dropdown)
+
         discography_list = Gtk.ListBox()
         discography_list.add_css_class("boxed-list")
         discography_list.set_selection_mode(Gtk.SelectionMode.SINGLE)
         discography_list.connect("row-activated", self.on_album_activated)
         self.discography_list = discography_list
-
-        if detail.discography:
-            for album in detail.discography:
-                row = self.build_album_row(album)
-                row.album = album
-                discography_list.append(row)
-        else:
-            placeholder = Gtk.ListBoxRow()
-            placeholder.set_selectable(False)
-            empty_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
-            empty_box.set_margin_top(14)
-            empty_box.set_margin_bottom(14)
-            empty_box.set_margin_start(14)
-            empty_box.set_margin_end(14)
-            empty_box.append(_append_classes(Gtk.Label(label="No discography loaded", xalign=0), "title-4"))
-            empty_box.append(_append_classes(Gtk.Label(label="This band page did not expose a release table.", xalign=0), "dim-label"))
-            placeholder.set_child(empty_box)
-            discography_list.append(placeholder)
+        self.populate_discography_list(detail, None)
 
         self.detail_content.append(hero)
         self.detail_content.append(metadata)
-        self.detail_content.append(discography_title)
+        self.detail_content.append(discography_header)
         self.detail_content.append(discography_list)
         self.detail_stack.set_visible_child_name("detail")
         return False
+
+    def resolve_discography_type_filters(self, discography: list[AlbumEntry]) -> list[str | None]:
+        type_values: list[str] = []
+        seen_values: set[str] = set()
+        for album in discography:
+            resolved_type = _resolve_album_type_name(album.type)
+            normalized_type = resolved_type.casefold()
+            if normalized_type in seen_values:
+                continue
+            seen_values.add(normalized_type)
+            type_values.append(resolved_type)
+        type_values.sort(key=str.casefold)
+        return [None, *type_values]
+
+    def resolve_discography_type_filter_labels(self, filters: list[str | None]) -> list[str]:
+        return ["All types" if filter_value is None else filter_value for filter_value in filters]
+
+    def on_discography_type_filter_selected(self, dropdown: Gtk.DropDown, _pspec) -> None:
+        if self.selected_band is None:
+            return
+        selected_index = dropdown.get_selected()
+        if selected_index >= len(self.discography_type_filter_values):
+            return
+        selected_type = self.discography_type_filter_values[selected_index]
+        self.populate_discography_list(self.selected_band, selected_type)
+
+    def populate_discography_list(self, detail: BandDetail, selected_type: str | None) -> None:
+        if self.discography_list is None:
+            return
+
+        self.clear_listbox(self.discography_list)
+        discography = detail.discography
+        if selected_type is not None:
+            normalized_selected_type = selected_type.casefold()
+            discography = [
+                album
+                for album in discography
+                if _resolve_album_type_name(album.type).casefold() == normalized_selected_type
+            ]
+
+        if discography:
+            for album in discography:
+                row = self.build_album_row(album)
+                row.album = album
+                self.discography_list.append(row)
+            return
+
+        placeholder = Gtk.ListBoxRow()
+        placeholder.set_selectable(False)
+        empty_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        empty_box.set_margin_top(14)
+        empty_box.set_margin_bottom(14)
+        empty_box.set_margin_start(14)
+        empty_box.set_margin_end(14)
+        if detail.discography:
+            empty_box.append(_append_classes(Gtk.Label(label="No releases for this filter", xalign=0), "title-4"))
+            empty_box.append(_append_classes(Gtk.Label(label="Try another discography type.", xalign=0), "dim-label"))
+        else:
+            empty_box.append(_append_classes(Gtk.Label(label="No discography loaded", xalign=0), "title-4"))
+            empty_box.append(_append_classes(Gtk.Label(label="This band page did not expose a release table.", xalign=0), "dim-label"))
+        placeholder.set_child(empty_box)
+        self.discography_list.append(placeholder)
 
     def build_album_row(self, album: AlbumEntry) -> Gtk.ListBoxRow:
         row = Gtk.ListBoxRow()
@@ -1208,6 +1270,8 @@ class FerrumWindow(Adw.ApplicationWindow):
     def clear_detail(self) -> None:
         self.selected_band = None
         self.discography_list = None
+        self.discography_type_filter_dropdown = None
+        self.discography_type_filter_values = [None]
         self.clear_box(self.detail_content)
         self.detail_stack.set_visible_child_name("empty")
 
