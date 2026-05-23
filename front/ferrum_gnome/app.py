@@ -560,10 +560,10 @@ class FerrumWindow(Adw.ApplicationWindow):
         )
 
         self.detail_content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
-        self.detail_content.set_margin_top(6)
-        self.detail_content.set_margin_bottom(6)
-        self.detail_content.set_margin_start(6)
-        self.detail_content.set_margin_end(6)
+        self.detail_content.set_margin_top(10)
+        self.detail_content.set_margin_bottom(10)
+        self.detail_content.set_margin_start(14)
+        self.detail_content.set_margin_end(10)
 
         scroller = Gtk.ScrolledWindow()
         scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
