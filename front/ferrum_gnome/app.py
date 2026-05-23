@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import threading
 import urllib.parse
 import webbrowser
@@ -20,6 +21,11 @@ from .backend import BackendError, FerrumBackend
 from .models import AlbumDetail, AlbumEntry, BandDetail, BandSummary, TrackEntry
 
 APP_ID = "io.github.prezdev.Ferrum"
+THEME_MODES = [
+    ("System", "system"),
+    ("Light", "light"),
+    ("Dark", "dark"),
+]
 
 SEARCH_TYPES = [
     ("Band name", "BAND_NAME"),
@@ -43,6 +49,34 @@ def _append_classes(widget: Gtk.Widget, *classes: str) -> Gtk.Widget:
     for css_class in classes:
         widget.add_css_class(css_class)
     return widget
+
+
+class ThemePreferences:
+    def __init__(self, file_path: Path | None = None) -> None:
+        self.file_path = file_path or Path.home() / ".config" / "ferrum" / "preferences.json"
+
+    def load_theme_mode(self) -> str:
+        if not self.file_path.exists():
+            return "light"
+
+        try:
+            payload = json.loads(self.file_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return "light"
+
+        theme_mode = payload.get("theme_mode", "light")
+        if theme_mode not in {mode for _, mode in THEME_MODES}:
+            return "light"
+        return theme_mode
+
+    def save_theme_mode(self, theme_mode: str) -> None:
+        self.file_path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {"theme_mode": theme_mode}
+
+        try:
+            self.file_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        except OSError:
+            pass
 
 
 class AlbumWindow(Adw.ApplicationWindow):
@@ -135,6 +169,7 @@ class AlbumWindow(Adw.ApplicationWindow):
 
         toolbar.set_content(scroller)
         self.set_content(toolbar)
+        app.apply_theme()
 
     def _build_track_row(self, track: TrackEntry) -> Gtk.ListBoxRow:
         row = Gtk.ListBoxRow()
@@ -311,6 +346,7 @@ class FerrumWindow(Adw.ApplicationWindow):
 
         title_widget = Adw.WindowTitle(title="Ferrum", subtitle="Metal Archives in a Linux-native shell")
         header.set_title_widget(title_widget)
+        header.pack_end(self.app.build_theme_dropdown())
         toolbar.add_top_bar(header)
 
         main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
@@ -325,6 +361,7 @@ class FerrumWindow(Adw.ApplicationWindow):
         toolbar.set_content(main_box)
         self.toast_overlay.set_child(toolbar)
         self.set_content(self.toast_overlay)
+        self.app.apply_theme()
 
     def _build_search_surface(self) -> Gtk.Widget:
         surface = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
@@ -897,6 +934,7 @@ class StartupWindow(Adw.ApplicationWindow):
 
         toolbar = Adw.ToolbarView()
         header = Adw.HeaderBar()
+        header.pack_end(self.app.build_theme_dropdown())
         toolbar.add_top_bar(header)
 
         self.stack = Gtk.Stack()
@@ -944,6 +982,7 @@ class StartupWindow(Adw.ApplicationWindow):
 
         toolbar.set_content(self.stack)
         self.set_content(toolbar)
+        self.app.apply_theme()
         self.start_backend_bootstrap()
 
     def start_backend_bootstrap(self) -> None:
@@ -976,15 +1015,64 @@ class StartupWindow(Adw.ApplicationWindow):
 class FerrumApp(Adw.Application):
     def __init__(self) -> None:
         super().__init__(application_id=APP_ID, flags=Gio.ApplicationFlags.NON_UNIQUE)
+        self.theme_preferences = ThemePreferences()
+        self.theme_mode = self.theme_preferences.load_theme_mode()
         self.connect("activate", self.on_activate)
 
     def on_activate(self, *_args) -> None:
-        Adw.StyleManager.get_default().set_color_scheme(Adw.ColorScheme.FORCE_LIGHT)
         self.load_css()
         window = self.props.active_window
         if window is None:
             window = StartupWindow(self)
+        self.apply_theme()
         window.present()
+
+    def build_theme_dropdown(self) -> Gtk.DropDown:
+        dropdown = Gtk.DropDown.new_from_strings([label for label, _ in THEME_MODES])
+        dropdown.set_valign(Gtk.Align.CENTER)
+        dropdown.set_selected(self.resolve_theme_index(self.theme_mode))
+        dropdown.connect("notify::selected", self.on_theme_selected)
+        return dropdown
+
+    def on_theme_selected(self, dropdown: Gtk.DropDown, _pspec) -> None:
+        selected_index = dropdown.get_selected()
+        if selected_index >= len(THEME_MODES):
+            return
+
+        _, theme_mode = THEME_MODES[selected_index]
+        if theme_mode == self.theme_mode:
+            return
+
+        self.theme_mode = theme_mode
+        self.theme_preferences.save_theme_mode(theme_mode)
+        self.apply_theme()
+
+    def apply_theme(self) -> None:
+        style_manager = Adw.StyleManager.get_default()
+        style_manager.set_color_scheme(self.resolve_color_scheme(self.theme_mode))
+
+        for window in self.get_windows():
+            window.remove_css_class("ferrum-light")
+            window.remove_css_class("ferrum-dark")
+            window.add_css_class(self.resolve_window_theme_class(self.theme_mode))
+
+    def resolve_theme_index(self, theme_mode: str) -> int:
+        for index, (_, value) in enumerate(THEME_MODES):
+            if value == theme_mode:
+                return index
+        return 1
+
+    def resolve_color_scheme(self, theme_mode: str) -> Adw.ColorScheme:
+        if theme_mode == "system":
+            return Adw.ColorScheme.DEFAULT
+        if theme_mode == "dark":
+            return Adw.ColorScheme.FORCE_DARK
+        return Adw.ColorScheme.FORCE_LIGHT
+
+    def resolve_window_theme_class(self, theme_mode: str) -> str:
+        if theme_mode == "dark":
+            return "ferrum-dark"
+        return "ferrum-light"
 
     def load_css(self) -> None:
         provider = Gtk.CssProvider()
