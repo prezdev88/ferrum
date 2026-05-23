@@ -19,7 +19,7 @@ from gi.repository import Adw, Gdk, GdkPixbuf, Gio, GLib, Graphene, Gtk, Pango
 
 from .backend import BackendError, FerrumBackend
 from .models import AlbumDetail, AlbumEntry, BandDetail, BandSummary, SearchHistoryEntry, TrackEntry
-from .settings import SettingsStore, UserSettings
+from .settings import SettingsStore, UserSettings, generate_random_color, normalize_hex_color
 
 APP_ID = "io.github.prezdev.Ferrum"
 THEME_MODES = [
@@ -51,6 +51,51 @@ def _append_classes(widget: Gtk.Widget, *classes: str) -> Gtk.Widget:
     for css_class in classes:
         widget.add_css_class(css_class)
     return widget
+
+
+def _normalize_album_type(album_type: str) -> str:
+    normalized_type = (album_type or "").strip().lower()
+    slug_characters = [
+        character if character.isalnum() else "-"
+        for character in normalized_type
+    ]
+    slug = "".join(slug_characters).strip("-")
+    while "--" in slug:
+        slug = slug.replace("--", "-")
+    return slug or "other"
+
+
+def _album_type_css_class(album_type: str) -> str:
+    return f"album-type-{_normalize_album_type(album_type)}"
+
+
+def _resolve_album_type_name(album_type: str) -> str:
+    return (album_type or "").strip() or "Other"
+
+
+def _hex_to_rgb(color: str) -> tuple[int, int, int]:
+    normalized_color = color.lstrip("#")
+    return (
+        int(normalized_color[0:2], 16),
+        int(normalized_color[2:4], 16),
+        int(normalized_color[4:6], 16),
+    )
+
+
+def _mix_color(color: str, target_color: str, ratio: float) -> str:
+    source_red, source_green, source_blue = _hex_to_rgb(color)
+    target_red, target_green, target_blue = _hex_to_rgb(target_color)
+    mixed_red = round(source_red * (1 - ratio) + target_red * ratio)
+    mixed_green = round(source_green * (1 - ratio) + target_green * ratio)
+    mixed_blue = round(source_blue * (1 - ratio) + target_blue * ratio)
+    return "#{:02X}{:02X}{:02X}".format(mixed_red, mixed_green, mixed_blue)
+
+
+def _rgba(color: str, alpha: float) -> str:
+    red, green, blue = _hex_to_rgb(color)
+    return f"rgba({red}, {green}, {blue}, {alpha:.2f})"
+
+
 class AlbumDialog(Adw.Dialog):
     def __init__(
         self,
@@ -947,17 +992,21 @@ class FerrumWindow(Adw.ApplicationWindow):
         title.set_ellipsize(Pango.EllipsizeMode.END)
         title.set_lines(1)
 
-        summary = Gtk.Label(
-            label="  •  ".join(filter(None, [album.year, album.type])),
-            xalign=0,
-        )
-        summary.add_css_class("dim-label")
-        summary.set_hexpand(True)
-        summary.set_ellipsize(Pango.EllipsizeMode.END)
-        summary.set_lines(1)
+        summary_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        summary_box.set_halign(Gtk.Align.START)
+
+        year_label = Gtk.Label(label=album.year or "Unknown year", xalign=0)
+        year_label.add_css_class("dim-label")
+
+        separator = Gtk.Label(label="•", xalign=0)
+        separator.add_css_class("dim-label")
+        type_badge = self.build_album_type_badge(album.type)
 
         text_box.append(title)
-        text_box.append(summary)
+        summary_box.append(year_label)
+        summary_box.append(separator)
+        summary_box.append(type_badge)
+        text_box.append(summary_box)
         box.append(artwork)
 
         if album.url:
@@ -1020,6 +1069,14 @@ class FerrumWindow(Adw.ApplicationWindow):
     def build_chip(self, text: str) -> Gtk.Widget:
         label = Gtk.Label(label=text, xalign=0)
         label.add_css_class("chip")
+        return label
+
+    def build_album_type_badge(self, album_type: str) -> Gtk.Widget:
+        resolved_album_type = _resolve_album_type_name(album_type)
+        self.app.ensure_album_type_color(resolved_album_type)
+        label = Gtk.Label(label=resolved_album_type, xalign=0)
+        label.add_css_class("album-type-badge")
+        label.add_css_class(_album_type_css_class(resolved_album_type))
         return label
 
     def build_remote_artwork(
@@ -1264,6 +1321,8 @@ class FerrumApp(Adw.Application):
         self.settings_store = SettingsStore()
         self.settings = self.settings_store.load()
         self.settings_dialog: Adw.Dialog | None = None
+        self.dynamic_css_provider = Gtk.CssProvider()
+        self.css_loaded = False
         self.connect("activate", self.on_activate)
 
     def on_activate(self, *_args) -> None:
@@ -1284,10 +1343,11 @@ class FerrumApp(Adw.Application):
             self.settings_dialog.force_close()
             self.settings_dialog = None
 
-        dialog = self.create_modal_dialog("Settings", 520, 320)
+        dialog = self.create_modal_dialog("Settings", 720, 560)
 
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
         content.add_css_class("settings-dialog-content")
+        content.set_vexpand(True)
         content.set_margin_top(20)
         content.set_margin_bottom(20)
         content.set_margin_start(20)
@@ -1314,9 +1374,42 @@ class FerrumApp(Adw.Application):
         provider_row.append(provider_label)
         provider_row.append(provider_dropdown)
 
+        album_type_colors_title = Gtk.Label(label="Album type colors", xalign=0)
+        album_type_colors_title.add_css_class("title-4")
+
+        album_type_colors_description = Gtk.Label(
+            label="Colors are created automatically the first time a release type appears.",
+            xalign=0,
+        )
+        album_type_colors_description.set_wrap(True)
+        album_type_colors_description.add_css_class("dim-label")
+
+        album_type_colors_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        album_type_colors_box.set_vexpand(True)
+        if self.settings.album_type_colors:
+            for album_type in sorted(self.settings.album_type_colors, key=str.casefold):
+                album_type_colors_box.append(self.build_album_type_settings_row(album_type))
+        else:
+            empty_state = Gtk.Label(
+                label="Album types will appear here after you load bands with discography data.",
+                xalign=0,
+            )
+            empty_state.set_wrap(True)
+            empty_state.add_css_class("dim-label")
+            album_type_colors_box.append(empty_state)
+
+        album_type_colors_scroller = Gtk.ScrolledWindow()
+        album_type_colors_scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        album_type_colors_scroller.set_min_content_height(280)
+        album_type_colors_scroller.set_vexpand(True)
+        album_type_colors_scroller.set_child(album_type_colors_box)
+
         content.append(title)
         content.append(_append_classes(theme_row, "settings-row"))
         content.append(_append_classes(provider_row, "settings-row"))
+        content.append(album_type_colors_title)
+        content.append(album_type_colors_description)
+        content.append(album_type_colors_scroller)
 
         dialog.set_child(content)
         self.settings_dialog = dialog
@@ -1393,6 +1486,116 @@ class FerrumApp(Adw.Application):
         self.settings.music_provider = provider
         self.settings_store.save(self.settings)
 
+    def toast(self, message: str) -> None:
+        active_window = self.props.active_window
+        if active_window is not None and hasattr(active_window, "toast"):
+            active_window.toast(message)
+
+    def build_album_type_settings_row(self, album_type: str) -> Gtk.Widget:
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        row.set_valign(Gtk.Align.CENTER)
+
+        name_label = Gtk.Label(label=album_type, xalign=0)
+        name_label.set_hexpand(True)
+
+        preview = self.build_album_type_preview(album_type)
+
+        color_entry = Gtk.Entry()
+        color_entry.set_width_chars(8)
+        color_entry.set_text(self.settings.album_type_colors.get(album_type, ""))
+        color_entry.set_placeholder_text("#RRGGBB")
+
+        save_button = Gtk.Button(label="Save")
+        save_button.connect("clicked", self.on_album_type_color_saved, album_type, color_entry)
+
+        randomize_button = Gtk.Button(label="Random")
+        randomize_button.connect("clicked", self.on_album_type_color_randomized, album_type, color_entry)
+
+        row.append(name_label)
+        row.append(preview)
+        row.append(color_entry)
+        row.append(save_button)
+        row.append(randomize_button)
+        return _append_classes(row, "settings-row")
+
+    def build_album_type_preview(self, album_type: str) -> Gtk.Widget:
+        preview = Gtk.Label(label=album_type, xalign=0)
+        preview.add_css_class("album-type-badge")
+        preview.add_css_class(_album_type_css_class(album_type))
+        return preview
+
+    def on_album_type_color_saved(
+        self,
+        _button: Gtk.Button,
+        album_type: str,
+        color_entry: Gtk.Entry,
+    ) -> None:
+        normalized_color = normalize_hex_color(color_entry.get_text())
+        if normalized_color is None:
+            self.toast("Use a valid color like #7C3AED.")
+            color_entry.set_text(self.settings.album_type_colors.get(album_type, ""))
+            return
+
+        self.settings.album_type_colors[album_type] = normalized_color
+        color_entry.set_text(normalized_color)
+        self.settings_store.save(self.settings)
+        self.reload_dynamic_css()
+
+    def on_album_type_color_randomized(
+        self,
+        _button: Gtk.Button,
+        album_type: str,
+        color_entry: Gtk.Entry,
+    ) -> None:
+        random_color = generate_random_color()
+        self.settings.album_type_colors[album_type] = random_color
+        color_entry.set_text(random_color)
+        self.settings_store.save(self.settings)
+        self.reload_dynamic_css()
+
+    def ensure_album_type_color(self, album_type: str) -> str:
+        resolved_album_type = _resolve_album_type_name(album_type)
+        for current_album_type, color in self.settings.album_type_colors.items():
+            if current_album_type.casefold() == resolved_album_type.casefold():
+                return color
+
+        generated_color = generate_random_color()
+        self.settings.album_type_colors[resolved_album_type] = generated_color
+        self.settings_store.save(self.settings)
+        self.reload_dynamic_css()
+        return generated_color
+
+    def reload_dynamic_css(self) -> None:
+        stylesheet = "\n".join(self.build_album_type_color_rules())
+        self.dynamic_css_provider.load_from_data(stylesheet.encode("utf-8"))
+
+    def build_album_type_color_rules(self) -> list[str]:
+        rules: list[str] = []
+        for album_type, color in sorted(self.settings.album_type_colors.items(), key=lambda item: item[0].casefold()):
+            css_class = _album_type_css_class(album_type)
+            rules.append(
+                f".{css_class} {{ "
+                f"background: {_rgba(color, 0.16)}; "
+                f"color: {_mix_color(color, '#000000', 0.38)}; "
+                f"border: 1px solid {_rgba(color, 0.28)}; "
+                f"}}"
+            )
+            rules.append(
+                f".ferrum-dark .{css_class} {{ "
+                f"background: {_rgba(color, 0.22)}; "
+                f"color: {_mix_color(color, '#FFFFFF', 0.58)}; "
+                f"border: 1px solid {_rgba(color, 0.34)}; "
+                f"}}"
+            )
+            rules.append(
+                f".ferrum-black .{css_class} {{ "
+                f"background: {_rgba(color, 0.20)}; "
+                f"color: {_mix_color(color, '#FFFFFF', 0.64)}; "
+                f"border: 1px solid {_rgba(color, 0.32)}; "
+                f"}}"
+            )
+        return rules
+
     def apply_theme(self) -> None:
         style_manager = Adw.StyleManager.get_default()
         style_manager.set_color_scheme(self.resolve_color_scheme(self.settings.theme_mode))
@@ -1430,14 +1633,27 @@ class FerrumApp(Adw.Application):
         return "ferrum-light"
 
     def load_css(self) -> None:
-        provider = Gtk.CssProvider()
-        stylesheet = Path(__file__).resolve().parent.parent / "style.css"
-        provider.load_from_path(str(stylesheet))
-        Gtk.StyleContext.add_provider_for_display(
-            Gdk.Display.get_default(),
-            provider,
-            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
-        )
+        display = Gdk.Display.get_default()
+        if display is None:
+            return
+
+        if not self.css_loaded:
+            provider = Gtk.CssProvider()
+            stylesheet = Path(__file__).resolve().parent.parent / "style.css"
+            provider.load_from_path(str(stylesheet))
+            Gtk.StyleContext.add_provider_for_display(
+                display,
+                provider,
+                Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
+            )
+            Gtk.StyleContext.add_provider_for_display(
+                display,
+                self.dynamic_css_provider,
+                Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
+            )
+            self.css_loaded = True
+
+        self.reload_dynamic_css()
 
 
 def main() -> None:

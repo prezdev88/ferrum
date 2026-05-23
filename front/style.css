@@ -189,6 +189,14 @@ window {
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
+.album-type-badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
 .pill {
   border-radius: 999px;
 }
