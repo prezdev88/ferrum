@@ -395,7 +395,7 @@ class FerrumWindow(Adw.ApplicationWindow):
         self.last_submitted_query = ""
         self.last_submitted_search_type = SEARCH_TYPES[0][1]
         self.search_history_dialog: Adw.Dialog | None = None
-        self.album_loading_dialog: LoadingDialog | None = None
+        self.loading_dialog: LoadingDialog | None = None
 
         self.toast_overlay = Adw.ToastOverlay()
         toolbar = Adw.ToolbarView()
@@ -538,6 +538,7 @@ class FerrumWindow(Adw.ApplicationWindow):
         self.results_count.set_text("Searching…")
         self.results_stack.set_visible_child_name("empty")
         self.clear_detail()
+        self.present_loading_dialog("Searching", f"Searching for {query}…")
 
         self.run_task(
             lambda: self.backend.search(query, self.last_submitted_search_type),
@@ -551,6 +552,7 @@ class FerrumWindow(Adw.ApplicationWindow):
             return
 
         self.results_list.set_sensitive(False)
+        self.present_loading_dialog("Loading band", f"Fetching details for {band.name or 'selected band'}…")
         self.run_task(
             lambda: self.backend.get_band(band.profile_url),
             self.show_band_detail,
@@ -562,7 +564,7 @@ class FerrumWindow(Adw.ApplicationWindow):
             self.toast("That album has no page.")
             return
 
-        self.present_album_loading_dialog(album)
+        self.present_loading_dialog("Loading album", f"Fetching details for {album.title or 'selected release'}…")
         self.run_task(
             lambda: self.backend.get_album(album.url),
             self.open_album_window,
@@ -580,7 +582,7 @@ class FerrumWindow(Adw.ApplicationWindow):
         threading.Thread(target=runner, daemon=True).start()
 
     def on_task_error(self, exc: Exception) -> bool:
-        self.close_album_loading_dialog()
+        self.close_loading_dialog()
         self.search_button.set_sensitive(True)
         self.results_list.set_sensitive(True)
         message = str(exc)
@@ -590,6 +592,7 @@ class FerrumWindow(Adw.ApplicationWindow):
         return False
 
     def populate_results(self, results: list[BandSummary]) -> bool:
+        self.close_loading_dialog()
         self.search_button.set_sensitive(True)
         self.results_list.set_sensitive(True)
         self.remember_search_history_entry(self.last_submitted_query, self.last_submitted_search_type)
@@ -805,6 +808,7 @@ class FerrumWindow(Adw.ApplicationWindow):
         return row
 
     def show_band_detail(self, detail: BandDetail) -> bool:
+        self.close_loading_dialog()
         self.search_button.set_sensitive(True)
         self.results_list.set_sensitive(True)
         self.selected_band = detail
@@ -970,26 +974,26 @@ class FerrumWindow(Adw.ApplicationWindow):
         if not self.selected_band:
             self.toast("Band context is missing.")
             return False
-        self.close_album_loading_dialog()
+        self.close_loading_dialog()
         self.refresh_discography_album(album)
         dialog = AlbumDialog(self.app, album, self.selected_band.name, self.app.settings.music_provider)
         dialog.present(self)
         return False
 
-    def present_album_loading_dialog(self, album: AlbumEntry) -> None:
-        self.close_album_loading_dialog()
-        self.album_loading_dialog = LoadingDialog(
+    def present_loading_dialog(self, title: str, message: str) -> None:
+        self.close_loading_dialog()
+        self.loading_dialog = LoadingDialog(
             self.app,
-            "Loading album",
-            f"Fetching details for {album.title or 'selected release'}…",
+            title,
+            message,
         )
-        self.album_loading_dialog.present(self)
+        self.loading_dialog.present(self)
 
-    def close_album_loading_dialog(self) -> None:
-        if self.album_loading_dialog is None:
+    def close_loading_dialog(self) -> None:
+        if self.loading_dialog is None:
             return
-        self.album_loading_dialog.force_close()
-        self.album_loading_dialog = None
+        self.loading_dialog.force_close()
+        self.loading_dialog = None
 
     def refresh_discography_album(self, album: AlbumDetail) -> None:
         if not self.selected_band:
