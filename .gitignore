@@ -1,3 +1,4 @@
 back/target
 __pycache__/
 *.pyc
+.vscode
