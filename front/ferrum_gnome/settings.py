@@ -35,11 +35,13 @@ class UserSettings:
     theme_mode: str = "black"
     music_provider: str = "youtube_music"
     album_type_colors: dict[str, str] = field(default_factory=dict)
+    favorite_bands: list[dict[str, str]] = field(default_factory=list)
 
 
 class SettingsStore:
     def __init__(self, file_path: Path | None = None) -> None:
         self.file_path = file_path or Path.home() / ".config" / "ferrum" / "preferences.json"
+        self.favorites_file_path = self.file_path.parent / "favorites.json"
 
     def load(self) -> UserSettings:
         if not self.file_path.exists():
@@ -59,10 +61,13 @@ class SettingsStore:
                 if normalized_type and normalized_color:
                     album_type_colors[normalized_type] = normalized_color
 
+        favorite_bands = self.load_favorites()
+
         return UserSettings(
             theme_mode=payload.get("theme_mode", "black"),
             music_provider=payload.get("music_provider", "youtube_music"),
             album_type_colors=album_type_colors,
+            favorite_bands=favorite_bands,
         )
 
     def save(self, settings: UserSettings) -> None:
@@ -75,5 +80,46 @@ class SettingsStore:
 
         try:
             self.file_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        except OSError:
+            pass
+        self.save_favorites(settings.favorite_bands)
+
+    def load_favorites(self) -> list[dict[str, str]]:
+        if not self.favorites_file_path.exists():
+            return []
+
+        try:
+            payload = json.loads(self.favorites_file_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return []
+
+        if not isinstance(payload, list):
+            return []
+
+        favorite_bands: list[dict[str, str]] = []
+        for item in payload:
+            if not isinstance(item, dict):
+                continue
+            profile_url = str(item.get("profile_url", "")).strip()
+            if not profile_url:
+                continue
+            favorite_bands.append(
+                {
+                    "name": str(item.get("name", "")).strip() or "Unknown band",
+                    "country": str(item.get("country", "")).strip(),
+                    "genre": str(item.get("genre", "")).strip(),
+                    "status": str(item.get("status", "")).strip(),
+                    "profile_url": profile_url,
+                }
+            )
+        return favorite_bands
+
+    def save_favorites(self, favorite_bands: list[dict[str, str]]) -> None:
+        self.favorites_file_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            self.favorites_file_path.write_text(
+                json.dumps(favorite_bands, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
         except OSError:
             pass

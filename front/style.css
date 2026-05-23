@@ -201,6 +201,21 @@ window {
   border-radius: 999px;
 }
 
+.favorite-star-button {
+  min-width: 42px;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.favorite-star-active {
+  color: #facc15;
+}
+
+.ferrum-dark .favorite-star-active,
+.ferrum-black .favorite-star-active {
+  color: #fcd34d;
+}
+
 .title-1,
 .title-2,
 .title-3,

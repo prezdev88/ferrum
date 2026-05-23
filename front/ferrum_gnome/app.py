@@ -463,6 +463,7 @@ class FerrumWindow(Adw.ApplicationWindow):
         self.discography_type_filter_values: list[str | None] = [None]
         self.discography_type_filter_dropdown: Gtk.DropDown | None = None
         self.discography_type_filter_by_band: dict[str, str | None] = {}
+        self.results_mode = "search"
 
         self.toast_overlay = Adw.ToastOverlay()
         toolbar = Adw.ToolbarView()
@@ -532,15 +533,19 @@ class FerrumWindow(Adw.ApplicationWindow):
         wrapper.add_css_class("card")
 
         heading = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-        heading_label = Gtk.Label(label="Results", xalign=0)
-        heading_label.add_css_class("title-4")
-        heading_label.set_hexpand(True)
+        self.heading_label = Gtk.Label(label="Results", xalign=0)
+        self.heading_label.add_css_class("title-4")
+        self.heading_label.set_hexpand(True)
 
         self.results_count = Gtk.Label(label="No results yet", xalign=1)
         self.results_count.add_css_class("dim-label")
 
-        heading.append(heading_label)
+        self.favorites_button = Gtk.Button(label="Favorites")
+        self.favorites_button.connect("clicked", lambda *_: self.toggle_favorites_view())
+
+        heading.append(self.heading_label)
         heading.append(self.results_count)
+        heading.append(self.favorites_button)
 
         self.results_stack = Gtk.Stack()
         self.results_stack.set_vexpand(True)
@@ -603,6 +608,8 @@ class FerrumWindow(Adw.ApplicationWindow):
         _, self.last_submitted_search_type = SEARCH_TYPES[self.search_type_dropdown.get_selected()]
         self.search_button.set_sensitive(False)
         self.results_count.set_text("Searching…")
+        self.results_mode = "search"
+        self.sync_results_heading()
         self.results_stack.set_visible_child_name("empty")
         self.clear_detail()
         self.present_loading_dialog("Searching", f"Searching for {query}…")
@@ -664,6 +671,8 @@ class FerrumWindow(Adw.ApplicationWindow):
         self.results_list.set_sensitive(True)
         self.remember_search_history_entry(self.last_submitted_query, self.last_submitted_search_type)
         self.results = results
+        self.results_mode = "search"
+        self.sync_results_heading()
         self.clear_listbox(self.results_list)
 
         if not results:
@@ -680,6 +689,67 @@ class FerrumWindow(Adw.ApplicationWindow):
         self.results_count.set_text(f"{len(results)} matches")
         self.results_stack.set_visible_child_name("list")
         return False
+
+    def toggle_favorites_view(self) -> None:
+        if self.results_mode == "favorites":
+            self.results_mode = "search"
+            self.sync_results_heading()
+            self.render_search_results()
+            return
+        self.results_mode = "favorites"
+        self.sync_results_heading()
+        self.render_favorite_results()
+
+    def sync_results_heading(self) -> None:
+        if self.results_mode == "favorites":
+            self.heading_label.set_text("Favorites")
+            self.favorites_button.set_label("Search results")
+            return
+        self.heading_label.set_text("Results")
+        self.favorites_button.set_label("Favorites")
+
+    def render_search_results(self) -> None:
+        self.clear_listbox(self.results_list)
+        if not self.results:
+            self.results_count.set_text("0 matches")
+            self.results_stack.set_visible_child_name("empty")
+            return
+        for band in self.results:
+            row = self.build_result_row(band)
+            row.band = band
+            self.results_list.append(row)
+        self.results_count.set_text(f"{len(self.results)} matches")
+        self.results_stack.set_visible_child_name("list")
+
+    def render_favorite_results(self) -> None:
+        favorites = self.get_favorite_bands()
+        self.clear_listbox(self.results_list)
+        if not favorites:
+            self.results_count.set_text("0 favorites")
+            self.results_stack.set_visible_child_name("empty")
+            self.toast("No favorite bands yet.")
+            return
+        for band in favorites:
+            row = self.build_result_row(band)
+            row.band = band
+            self.results_list.append(row)
+        self.results_count.set_text(f"{len(favorites)} favorites")
+        self.results_stack.set_visible_child_name("list")
+
+    def get_favorite_bands(self) -> list[BandSummary]:
+        favorite_bands: list[BandSummary] = []
+        for item in self.app.settings.favorite_bands:
+            favorite_bands.append(
+                BandSummary(
+                    name=item.get("name", "Unknown band"),
+                    country=item.get("country", ""),
+                    genre=item.get("genre", ""),
+                    status=item.get("status", ""),
+                    profile_url=item.get("profile_url", ""),
+                )
+            )
+        favorite_bands.sort(key=lambda band: (band.name or "").casefold())
+        return favorite_bands
 
     def load_search_history(self) -> None:
         def runner() -> None:
@@ -920,6 +990,12 @@ class FerrumWindow(Adw.ApplicationWindow):
 
         hero_actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         hero_actions.set_halign(Gtk.Align.START)
+        favorite_button = Gtk.Button()
+        favorite_button.add_css_class("pill")
+        favorite_button.add_css_class("favorite-star-button")
+        self.apply_favorite_button_state(favorite_button, detail.profile_url)
+        favorite_button.connect("clicked", self.on_favorite_button_clicked)
+        hero_actions.append(favorite_button)
         if detail.profile_url:
             profile_button = Gtk.Button(label="Open in browser")
             profile_button.add_css_class("pill")
@@ -1050,6 +1126,56 @@ class FerrumWindow(Adw.ApplicationWindow):
         if detail.profile_url:
             return detail.profile_url
         return (detail.name or "").strip().lower()
+
+    def on_favorite_button_clicked(self, button: Gtk.Button) -> None:
+        if self.selected_band is None or not self.selected_band.profile_url:
+            self.toast("This band has no profile URL.")
+            return
+
+        favorite_key = self.selected_band.profile_url
+        favorite_bands = self.app.settings.favorite_bands
+        index_to_remove = None
+        for index, item in enumerate(favorite_bands):
+            if item.get("profile_url", "") == favorite_key:
+                index_to_remove = index
+                break
+
+        if index_to_remove is not None:
+            favorite_bands.pop(index_to_remove)
+            self.toast("Band removed from favorites.")
+        else:
+            favorite_bands.insert(
+                0,
+                {
+                    "name": self.selected_band.name or "Unknown band",
+                    "country": self.selected_band.country or "",
+                    "genre": self.selected_band.genre or "",
+                    "status": self.selected_band.status or "",
+                    "profile_url": favorite_key,
+                },
+            )
+            self.toast("Band added to favorites.")
+
+        self.app.settings_store.save(self.app.settings)
+        self.apply_favorite_button_state(button, favorite_key)
+        if self.results_mode == "favorites":
+            self.render_favorite_results()
+
+    def apply_favorite_button_state(self, button: Gtk.Button, profile_url: str) -> None:
+        is_favorite = self.is_favorite_band(profile_url)
+        button.set_label("★" if is_favorite else "☆")
+        if is_favorite:
+            button.add_css_class("favorite-star-active")
+            return
+        button.remove_css_class("favorite-star-active")
+
+    def is_favorite_band(self, profile_url: str) -> bool:
+        if not profile_url:
+            return False
+        for item in self.app.settings.favorite_bands:
+            if item.get("profile_url", "") == profile_url:
+                return True
+        return False
 
     def populate_discography_list(self, detail: BandDetail, selected_type: str | None) -> None:
         if self.discography_list is None:
