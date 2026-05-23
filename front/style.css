@@ -8,6 +8,11 @@ window.ferrum-dark {
   color: #f4efea;
 }
 
+window.ferrum-black {
+  background: #000000;
+  color: #f5f5f5;
+}
+
 .search-surface {
   padding: 14px;
   background: #ffffff;
@@ -19,6 +24,11 @@ window.ferrum-dark .search-surface {
   border: 1px solid rgba(193, 152, 126, 0.16);
 }
 
+window.ferrum-black .search-surface {
+  background: #0d0d0d;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 .hero-card {
   padding: 22px;
   background: #ffffff;
@@ -26,6 +36,10 @@ window.ferrum-dark .search-surface {
 
 window.ferrum-dark .hero-card {
   background: #201d1d;
+}
+
+window.ferrum-black .hero-card {
+  background: #0d0d0d;
 }
 
 .artwork-frame {
@@ -39,12 +53,21 @@ window.ferrum-dark .artwork-frame {
   border: 1px solid rgba(193, 152, 126, 0.18);
 }
 
+window.ferrum-black .artwork-frame {
+  background: #111111;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
 .artwork-placeholder {
   color: rgba(106, 43, 35, 0.5);
 }
 
 window.ferrum-dark .artwork-placeholder {
   color: rgba(226, 199, 183, 0.48);
+}
+
+window.ferrum-black .artwork-placeholder {
+  color: rgba(255, 255, 255, 0.38);
 }
 
 .card {
@@ -61,6 +84,12 @@ window.ferrum-dark .card {
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
 }
 
+window.ferrum-black .card {
+  background: #0a0a0a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.4);
+}
+
 .eyebrow {
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -72,12 +101,20 @@ window.ferrum-dark .eyebrow {
   color: #d08871;
 }
 
+window.ferrum-black .eyebrow {
+  color: #f2f2f2;
+}
+
 .dim-label {
   color: rgba(36, 31, 49, 0.72);
 }
 
 window.ferrum-dark .dim-label {
   color: rgba(244, 239, 234, 0.68);
+}
+
+window.ferrum-black .dim-label {
+  color: rgba(245, 245, 245, 0.62);
 }
 
 .heading {
@@ -90,6 +127,10 @@ window.ferrum-dark .heading {
   color: #d69a83;
 }
 
+window.ferrum-black .heading {
+  color: #f0f0f0;
+}
+
 .meta-key {
   font-weight: 700;
   color: rgba(36, 31, 49, 0.86);
@@ -97,6 +138,10 @@ window.ferrum-dark .heading {
 
 window.ferrum-dark .meta-key {
   color: rgba(244, 239, 234, 0.9);
+}
+
+window.ferrum-black .meta-key {
+  color: rgba(245, 245, 245, 0.92);
 }
 
 .meta-value {
@@ -107,6 +152,10 @@ window.ferrum-dark .meta-value {
   color: rgba(244, 239, 234, 0.94);
 }
 
+window.ferrum-black .meta-value {
+  color: rgba(245, 245, 245, 0.9);
+}
+
 .track-title {
   font-weight: 600;
   color: #241f31;
@@ -114,6 +163,10 @@ window.ferrum-dark .meta-value {
 
 window.ferrum-dark .track-title {
   color: #f4efea;
+}
+
+window.ferrum-black .track-title {
+  color: #f5f5f5;
 }
 
 .chip {
@@ -128,6 +181,12 @@ window.ferrum-dark .chip {
   background: rgba(208, 136, 113, 0.13);
   color: #f0c4b3;
   border: 1px solid rgba(208, 136, 113, 0.18);
+}
+
+window.ferrum-black .chip {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f5f5f5;
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .pill {
@@ -148,6 +207,13 @@ window.ferrum-dark .title-4 {
   color: #f4efea;
 }
 
+window.ferrum-black .title-1,
+window.ferrum-black .title-2,
+window.ferrum-black .title-3,
+window.ferrum-black .title-4 {
+  color: #f5f5f5;
+}
+
 .boxed-list {
   background: #ffffff;
   border-radius: 18px;
@@ -155,6 +221,10 @@ window.ferrum-dark .title-4 {
 
 window.ferrum-dark .boxed-list {
   background: #1a1818;
+}
+
+window.ferrum-black .boxed-list {
+  background: #080808;
 }
 
 entry,

@@ -25,6 +25,7 @@ THEME_MODES = [
     ("System", "system"),
     ("Light", "light"),
     ("Dark", "dark"),
+    ("Black", "black"),
 ]
 
 SEARCH_TYPES = [
@@ -57,16 +58,16 @@ class ThemePreferences:
 
     def load_theme_mode(self) -> str:
         if not self.file_path.exists():
-            return "light"
+            return "black"
 
         try:
             payload = json.loads(self.file_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
-            return "light"
+            return "black"
 
-        theme_mode = payload.get("theme_mode", "light")
+        theme_mode = payload.get("theme_mode", "black")
         if theme_mode not in {mode for _, mode in THEME_MODES}:
-            return "light"
+            return "black"
         return theme_mode
 
     def save_theme_mode(self, theme_mode: str) -> None:
@@ -1065,11 +1066,13 @@ class FerrumApp(Adw.Application):
     def resolve_color_scheme(self, theme_mode: str) -> Adw.ColorScheme:
         if theme_mode == "system":
             return Adw.ColorScheme.DEFAULT
-        if theme_mode == "dark":
+        if theme_mode in {"dark", "black"}:
             return Adw.ColorScheme.FORCE_DARK
         return Adw.ColorScheme.FORCE_LIGHT
 
     def resolve_window_theme_class(self, theme_mode: str) -> str:
+        if theme_mode == "black":
+            return "ferrum-black"
         if theme_mode == "dark":
             return "ferrum-dark"
         return "ferrum-light"
