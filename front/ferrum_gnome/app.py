@@ -81,7 +81,7 @@ class ThemePreferences:
             pass
 
 
-class AlbumWindow(Adw.ApplicationWindow):
+class AlbumDialog(Adw.Dialog):
     def __init__(
         self,
         app: Adw.Application,
@@ -89,12 +89,20 @@ class AlbumWindow(Adw.ApplicationWindow):
         band_name: str,
         provider_dropdown: Gtk.DropDown,
     ) -> None:
-        super().__init__(application=app, title=album.title, default_width=720, default_height=640)
+        super().__init__()
         self.album = album
         self.band_name = band_name
         self.provider_dropdown = provider_dropdown
+        self.set_title(album.title)
+        self.set_content_width(820)
+        self.set_content_height(700)
+        self.set_follows_content_size(False)
+        self.set_can_close(True)
+        self.set_presentation_mode(Adw.DialogPresentationMode.FLOATING)
 
         toolbar = Adw.ToolbarView()
+        toolbar.add_css_class("album-dialog-shell")
+        toolbar.add_css_class(app.resolve_window_theme_class(app.theme_mode))
         header = Adw.HeaderBar()
         toolbar.add_top_bar(header)
 
@@ -170,8 +178,7 @@ class AlbumWindow(Adw.ApplicationWindow):
         scroller.set_child(content)
 
         toolbar.set_content(scroller)
-        self.set_content(toolbar)
-        app.apply_theme()
+        self.set_child(toolbar)
 
     def _build_track_row(self, track: TrackEntry) -> Gtk.ListBoxRow:
         row = Gtk.ListBoxRow()
@@ -333,6 +340,46 @@ class AlbumWindow(Adw.ApplicationWindow):
         return False
 
 
+class LoadingDialog(Adw.Dialog):
+    def __init__(self, app: Adw.Application, title: str, message: str) -> None:
+        super().__init__()
+        self.set_title(title)
+        self.set_content_width(360)
+        self.set_content_height(180)
+        self.set_follows_content_size(False)
+        self.set_can_close(False)
+        self.set_presentation_mode(Adw.DialogPresentationMode.FLOATING)
+
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
+        content.set_margin_top(24)
+        content.set_margin_bottom(24)
+        content.set_margin_start(24)
+        content.set_margin_end(24)
+        content.set_valign(Gtk.Align.CENTER)
+        content.set_halign(Gtk.Align.CENTER)
+
+        spinner = Gtk.Spinner()
+        spinner.set_spinning(True)
+        spinner.set_size_request(36, 36)
+
+        title_label = Gtk.Label(label=title, xalign=0.5)
+        title_label.add_css_class("title-3")
+
+        message_label = Gtk.Label(label=message, xalign=0.5)
+        message_label.add_css_class("dim-label")
+        message_label.set_wrap(True)
+        message_label.set_justify(Gtk.Justification.CENTER)
+
+        content.append(spinner)
+        content.append(title_label)
+        content.append(message_label)
+
+        shell = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        shell.add_css_class(app.resolve_window_theme_class(app.theme_mode))
+        shell.append(content)
+        self.set_child(shell)
+
+
 class FerrumWindow(Adw.ApplicationWindow):
     def __init__(self, app: Adw.Application) -> None:
         super().__init__(application=app, title="Ferrum", default_width=1320, default_height=860)
@@ -345,6 +392,7 @@ class FerrumWindow(Adw.ApplicationWindow):
         self.last_submitted_query = ""
         self.last_submitted_search_type = SEARCH_TYPES[0][1]
         self.search_history_dialog: Adw.Dialog | None = None
+        self.album_loading_dialog: LoadingDialog | None = None
 
         self.toast_overlay = Adw.ToastOverlay()
         toolbar = Adw.ToolbarView()
@@ -515,6 +563,7 @@ class FerrumWindow(Adw.ApplicationWindow):
             self.toast("That album has no page.")
             return
 
+        self.present_album_loading_dialog(album)
         self.run_task(
             lambda: self.backend.get_album(album.url),
             self.open_album_window,
@@ -532,6 +581,7 @@ class FerrumWindow(Adw.ApplicationWindow):
         threading.Thread(target=runner, daemon=True).start()
 
     def on_task_error(self, exc: Exception) -> bool:
+        self.close_album_loading_dialog()
         self.search_button.set_sensitive(True)
         self.results_list.set_sensitive(True)
         message = str(exc)
@@ -921,10 +971,26 @@ class FerrumWindow(Adw.ApplicationWindow):
         if not self.selected_band:
             self.toast("Band context is missing.")
             return False
+        self.close_album_loading_dialog()
         self.refresh_discography_album(album)
-        window = AlbumWindow(self.app, album, self.selected_band.name, self.provider_dropdown)
-        window.present()
+        dialog = AlbumDialog(self.app, album, self.selected_band.name, self.provider_dropdown)
+        dialog.present(self)
         return False
+
+    def present_album_loading_dialog(self, album: AlbumEntry) -> None:
+        self.close_album_loading_dialog()
+        self.album_loading_dialog = LoadingDialog(
+            self.app,
+            "Loading album",
+            f"Fetching details for {album.title or 'selected release'}…",
+        )
+        self.album_loading_dialog.present(self)
+
+    def close_album_loading_dialog(self) -> None:
+        if self.album_loading_dialog is None:
+            return
+        self.album_loading_dialog.force_close()
+        self.album_loading_dialog = None
 
     def refresh_discography_album(self, album: AlbumDetail) -> None:
         if not self.selected_band:
