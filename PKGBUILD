@@ -7,6 +7,8 @@ pkgdesc="Linux-native GTK frontend + Spring Boot backend for browsing Metal Arch
 arch=('x86_64')
 url="https://github.com/prezdev88/ferrum"
 license=('custom')
+provides=('ferrum')
+conflicts=('ferrum')
 depends=(
   'python'
   'python-gobject'
@@ -14,6 +16,9 @@ depends=(
   'libadwaita'
   'python-requests'
   'jre21-openjdk'
+)
+optdepends=(
+  'firefox: browser runtime for Playwright (if not using bundled download)'
 )
 makedepends=(
   'git'
@@ -39,6 +44,7 @@ package() {
   # Backend JAR
   local jar_path
   jar_path="$(find "$srcdir/${pkgname%-git}/back/target" -maxdepth 1 -type f -name 'ferrum-*.jar' ! -name '*.original' | head -n 1)"
+  [[ -n "$jar_path" ]]
   install -Dm644 "$jar_path" "$app_root/ferrum-backend.jar"
 
   # Frontend Python package + CSS
@@ -80,4 +86,3 @@ BACKEND_PID="$!"
 python3 -m ferrum_gnome.app
 EOF
 }
-

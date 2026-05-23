@@ -62,3 +62,15 @@ Ferrum stores local data under `~/.config/ferrum/`:
 All endpoints and `curl` examples:
 
 - [ENDPOINTS.md](/home/prezdev/git-projects/ferrum/back/ENDPOINTS.md)
+
+## 📦 Arch Linux (AUR)
+
+Install from AUR:
+
+```bash
+yay -S ferrum-git
+```
+
+AUR package page:
+
+- https://aur.archlinux.org/packages/ferrum-git
