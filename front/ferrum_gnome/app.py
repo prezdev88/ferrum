@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import threading
 import urllib.parse
 import webbrowser
@@ -20,6 +19,7 @@ from gi.repository import Adw, Gdk, GdkPixbuf, Gio, GLib, Graphene, Gtk, Pango
 
 from .backend import BackendError, FerrumBackend
 from .models import AlbumDetail, AlbumEntry, BandDetail, BandSummary, SearchHistoryEntry, TrackEntry
+from .settings import SettingsStore, UserSettings
 
 APP_ID = "io.github.prezdev.Ferrum"
 THEME_MODES = [
@@ -51,58 +51,31 @@ def _append_classes(widget: Gtk.Widget, *classes: str) -> Gtk.Widget:
     for css_class in classes:
         widget.add_css_class(css_class)
     return widget
-
-
-class ThemePreferences:
-    def __init__(self, file_path: Path | None = None) -> None:
-        self.file_path = file_path or Path.home() / ".config" / "ferrum" / "preferences.json"
-
-    def load_theme_mode(self) -> str:
-        if not self.file_path.exists():
-            return "black"
-
-        try:
-            payload = json.loads(self.file_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            return "black"
-
-        theme_mode = payload.get("theme_mode", "black")
-        if theme_mode not in {mode for _, mode in THEME_MODES}:
-            return "black"
-        return theme_mode
-
-    def save_theme_mode(self, theme_mode: str) -> None:
-        self.file_path.parent.mkdir(parents=True, exist_ok=True)
-        payload = {"theme_mode": theme_mode}
-
-        try:
-            self.file_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-        except OSError:
-            pass
-
-
 class AlbumDialog(Adw.Dialog):
     def __init__(
         self,
         app: Adw.Application,
         album: AlbumDetail,
         band_name: str,
-        provider_dropdown: Gtk.DropDown,
+        music_provider: str,
     ) -> None:
         super().__init__()
         self.album = album
         self.band_name = band_name
-        self.provider_dropdown = provider_dropdown
+        self.music_provider = music_provider
         self.set_title(album.title)
         self.set_content_width(820)
         self.set_content_height(700)
         self.set_follows_content_size(False)
         self.set_can_close(True)
         self.set_presentation_mode(Adw.DialogPresentationMode.FLOATING)
+        backdrop_click = Gtk.GestureClick.new()
+        backdrop_click.connect("pressed", self.on_backdrop_pressed)
+        self.add_controller(backdrop_click)
 
         toolbar = Adw.ToolbarView()
         toolbar.add_css_class("album-dialog-shell")
-        toolbar.add_css_class(app.resolve_window_theme_class(app.theme_mode))
+        toolbar.add_css_class(app.resolve_window_theme_class(app.settings.theme_mode))
         header = Adw.HeaderBar()
         toolbar.add_top_bar(header)
 
@@ -180,6 +153,37 @@ class AlbumDialog(Adw.Dialog):
         toolbar.set_content(scroller)
         self.set_child(toolbar)
 
+    def on_backdrop_pressed(
+        self,
+        _gesture: Gtk.GestureClick,
+        _n_press: int,
+        click_x: float,
+        click_y: float,
+    ) -> None:
+        content = self.get_child()
+        if content is None:
+            self.close()
+            return
+
+        inside_bounds, bounds = content.compute_bounds(self)
+        if not inside_bounds:
+            return
+
+        if self.is_point_inside_rect(click_x, click_y, bounds):
+            return
+
+        self.close()
+
+    def is_point_inside_rect(self, point_x: float, point_y: float, rect: Graphene.Rect) -> bool:
+        rect_x = rect.get_x()
+        rect_y = rect.get_y()
+        rect_width = rect.get_width()
+        rect_height = rect.get_height()
+        return (
+            rect_x <= point_x <= rect_x + rect_width
+            and rect_y <= point_y <= rect_y + rect_height
+        )
+
     def _build_track_row(self, track: TrackEntry) -> Gtk.ListBoxRow:
         row = Gtk.ListBoxRow()
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
@@ -216,9 +220,8 @@ class AlbumDialog(Adw.Dialog):
 
     def _open_track(self, track: TrackEntry) -> None:
         query = " ".join(value for value in [self.band_name, track.title, self.album.title] if value)
-        provider = PROVIDERS[self.provider_dropdown.get_selected()][1]
         encoded = urllib.parse.quote(query)
-        if provider == "youtube":
+        if self.music_provider == "youtube":
             url = f"https://www.youtube.com/results?search_query={encoded}"
         else:
             url = f"https://music.youtube.com/search?q={encoded}"
@@ -375,7 +378,7 @@ class LoadingDialog(Adw.Dialog):
         content.append(message_label)
 
         shell = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        shell.add_css_class(app.resolve_window_theme_class(app.theme_mode))
+        shell.add_css_class(app.resolve_window_theme_class(app.settings.theme_mode))
         shell.append(content)
         self.set_child(shell)
 
@@ -400,7 +403,7 @@ class FerrumWindow(Adw.ApplicationWindow):
 
         title_widget = Adw.WindowTitle(title="Ferrum", subtitle="Metal Archives in a Linux-native shell")
         header.set_title_widget(title_widget)
-        header.pack_end(self.app.build_theme_dropdown())
+        header.pack_end(self.app.build_settings_button(self))
         toolbar.add_top_bar(header)
 
         main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
@@ -433,9 +436,6 @@ class FerrumWindow(Adw.ApplicationWindow):
         self.search_type_dropdown = Gtk.DropDown.new_from_strings([label for label, _ in SEARCH_TYPES])
         self.search_type_dropdown.set_selected(0)
 
-        self.provider_dropdown = Gtk.DropDown.new_from_strings([label for label, _ in PROVIDERS])
-        self.provider_dropdown.set_selected(0)
-
         self.search_history_button = Gtk.Button(label="View search history")
         self.search_history_button.connect("clicked", lambda *_: self.present_search_history_dialog())
 
@@ -445,7 +445,6 @@ class FerrumWindow(Adw.ApplicationWindow):
 
         controls.append(self.query_entry)
         controls.append(self.search_type_dropdown)
-        controls.append(self.provider_dropdown)
         controls.append(self.search_history_button)
         controls.append(self.search_button)
 
@@ -973,7 +972,7 @@ class FerrumWindow(Adw.ApplicationWindow):
             return False
         self.close_album_loading_dialog()
         self.refresh_discography_album(album)
-        dialog = AlbumDialog(self.app, album, self.selected_band.name, self.provider_dropdown)
+        dialog = AlbumDialog(self.app, album, self.selected_band.name, self.app.settings.music_provider)
         dialog.present(self)
         return False
 
@@ -1177,7 +1176,7 @@ class StartupWindow(Adw.ApplicationWindow):
 
         toolbar = Adw.ToolbarView()
         header = Adw.HeaderBar()
-        header.pack_end(self.app.build_theme_dropdown())
+        header.pack_end(self.app.build_settings_button(self))
         toolbar.add_top_bar(header)
 
         self.stack = Gtk.Stack()
@@ -1258,8 +1257,9 @@ class StartupWindow(Adw.ApplicationWindow):
 class FerrumApp(Adw.Application):
     def __init__(self) -> None:
         super().__init__(application_id=APP_ID, flags=Gio.ApplicationFlags.NON_UNIQUE)
-        self.theme_preferences = ThemePreferences()
-        self.theme_mode = self.theme_preferences.load_theme_mode()
+        self.settings_store = SettingsStore()
+        self.settings = self.settings_store.load()
+        self.settings_dialog: Adw.Dialog | None = None
         self.connect("activate", self.on_activate)
 
     def on_activate(self, *_args) -> None:
@@ -1270,12 +1270,98 @@ class FerrumApp(Adw.Application):
         self.apply_theme()
         window.present()
 
-    def build_theme_dropdown(self) -> Gtk.DropDown:
-        dropdown = Gtk.DropDown.new_from_strings([label for label, _ in THEME_MODES])
-        dropdown.set_valign(Gtk.Align.CENTER)
-        dropdown.set_selected(self.resolve_theme_index(self.theme_mode))
-        dropdown.connect("notify::selected", self.on_theme_selected)
-        return dropdown
+    def build_settings_button(self, parent: Gtk.Widget) -> Gtk.Button:
+        button = Gtk.Button(label="Settings")
+        button.connect("clicked", lambda *_: self.present_settings_dialog(parent))
+        return button
+
+    def present_settings_dialog(self, parent: Gtk.Widget) -> None:
+        if self.settings_dialog is not None:
+            self.settings_dialog.force_close()
+            self.settings_dialog = None
+
+        dialog = self.create_modal_dialog("Settings", 520, 320)
+
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
+        content.set_margin_top(20)
+        content.set_margin_bottom(20)
+        content.set_margin_start(20)
+        content.set_margin_end(20)
+
+        title = Gtk.Label(label="Preferences", xalign=0)
+        title.add_css_class("title-3")
+
+        theme_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)
+        theme_label = Gtk.Label(label="Theme", xalign=0)
+        theme_label.set_hexpand(True)
+        theme_dropdown = Gtk.DropDown.new_from_strings([label for label, _ in THEME_MODES])
+        theme_dropdown.set_selected(self.resolve_theme_index(self.settings.theme_mode))
+        theme_dropdown.connect("notify::selected", self.on_theme_selected)
+        theme_row.append(theme_label)
+        theme_row.append(theme_dropdown)
+
+        provider_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)
+        provider_label = Gtk.Label(label="Music provider", xalign=0)
+        provider_label.set_hexpand(True)
+        provider_dropdown = Gtk.DropDown.new_from_strings([label for label, _ in PROVIDERS])
+        provider_dropdown.set_selected(self.resolve_provider_index(self.settings.music_provider))
+        provider_dropdown.connect("notify::selected", self.on_provider_selected)
+        provider_row.append(provider_label)
+        provider_row.append(provider_dropdown)
+
+        content.append(title)
+        content.append(_append_classes(theme_row, "card"))
+        content.append(_append_classes(provider_row, "card"))
+
+        dialog.set_child(content)
+        self.settings_dialog = dialog
+        self.apply_theme()
+        dialog.present(parent)
+
+    def create_modal_dialog(self, title: str, width: int, height: int) -> Adw.Dialog:
+        dialog = Adw.Dialog()
+        dialog.set_title(title)
+        dialog.set_content_width(width)
+        dialog.set_content_height(height)
+        dialog.set_follows_content_size(False)
+        dialog.set_can_close(True)
+        dialog.set_presentation_mode(Adw.DialogPresentationMode.FLOATING)
+        backdrop_click = Gtk.GestureClick.new()
+        backdrop_click.connect("pressed", self.on_app_modal_backdrop_pressed, dialog)
+        dialog.add_controller(backdrop_click)
+        return dialog
+
+    def on_app_modal_backdrop_pressed(
+        self,
+        _gesture: Gtk.GestureClick,
+        _n_press: int,
+        click_x: float,
+        click_y: float,
+        dialog: Adw.Dialog,
+    ) -> None:
+        content = dialog.get_child()
+        if content is None:
+            dialog.close()
+            return
+
+        inside_bounds, bounds = content.compute_bounds(dialog)
+        if not inside_bounds:
+            return
+
+        if self.is_point_inside_rect(click_x, click_y, bounds):
+            return
+
+        dialog.close()
+
+    def is_point_inside_rect(self, point_x: float, point_y: float, rect: Graphene.Rect) -> bool:
+        rect_x = rect.get_x()
+        rect_y = rect.get_y()
+        rect_width = rect.get_width()
+        rect_height = rect.get_height()
+        return (
+            rect_x <= point_x <= rect_x + rect_width
+            and rect_y <= point_y <= rect_y + rect_height
+        )
 
     def on_theme_selected(self, dropdown: Gtk.DropDown, _pspec) -> None:
         selected_index = dropdown.get_selected()
@@ -1283,27 +1369,46 @@ class FerrumApp(Adw.Application):
             return
 
         _, theme_mode = THEME_MODES[selected_index]
-        if theme_mode == self.theme_mode:
+        if theme_mode == self.settings.theme_mode:
             return
 
-        self.theme_mode = theme_mode
-        self.theme_preferences.save_theme_mode(theme_mode)
+        self.settings.theme_mode = theme_mode
+        self.settings_store.save(self.settings)
         self.apply_theme()
+
+    def on_provider_selected(self, dropdown: Gtk.DropDown, _pspec) -> None:
+        selected_index = dropdown.get_selected()
+        if selected_index >= len(PROVIDERS):
+            return
+
+        _, provider = PROVIDERS[selected_index]
+        if provider == self.settings.music_provider:
+            return
+
+        self.settings.music_provider = provider
+        self.settings_store.save(self.settings)
 
     def apply_theme(self) -> None:
         style_manager = Adw.StyleManager.get_default()
-        style_manager.set_color_scheme(self.resolve_color_scheme(self.theme_mode))
+        style_manager.set_color_scheme(self.resolve_color_scheme(self.settings.theme_mode))
 
         for window in self.get_windows():
             window.remove_css_class("ferrum-light")
             window.remove_css_class("ferrum-dark")
-            window.add_css_class(self.resolve_window_theme_class(self.theme_mode))
+            window.remove_css_class("ferrum-black")
+            window.add_css_class(self.resolve_window_theme_class(self.settings.theme_mode))
 
     def resolve_theme_index(self, theme_mode: str) -> int:
         for index, (_, value) in enumerate(THEME_MODES):
             if value == theme_mode:
                 return index
         return 1
+
+    def resolve_provider_index(self, provider: str) -> int:
+        for index, (_, value) in enumerate(PROVIDERS):
+            if value == provider:
+                return index
+        return 0
 
     def resolve_color_scheme(self, theme_mode: str) -> Adw.ColorScheme:
         if theme_mode == "system":
