@@ -6,7 +6,7 @@ import time
 from urllib.parse import urlencode
 
 import requests
-from .models import AlbumDetail, AlbumEntry, BandDetail, BandSummary, TrackEntry
+from .models import AlbumDetail, AlbumEntry, BandDetail, BandSummary, SearchHistoryEntry, TrackEntry
 
 
 class BackendError(RuntimeError):
@@ -80,6 +80,17 @@ class FerrumBackend:
                 for item in payload.get("tracks", [])
             ],
         )
+
+    def get_search_history(self, limit: int = 100) -> list[SearchHistoryEntry]:
+        payload = self._get_json("/api/search-history", {"limit": str(limit)})
+        return [
+            SearchHistoryEntry(
+                query=item.get("query", ""),
+                search_type=item.get("searchType", ""),
+            )
+            for item in payload
+            if item.get("query", "").strip()
+        ]
 
     def wait_until_ready(self, timeout_seconds: int = 60) -> None:
         deadline = time.time() + timeout_seconds

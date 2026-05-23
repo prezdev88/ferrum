@@ -11,14 +11,15 @@ import requests
 
 gi.require_version("Gdk", "4.0")
 gi.require_version("GdkPixbuf", "2.0")
+gi.require_version("Graphene", "1.0")
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 gi.require_version("Pango", "1.0")
 
-from gi.repository import Adw, Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango
+from gi.repository import Adw, Gdk, GdkPixbuf, Gio, GLib, Graphene, Gtk, Pango
 
 from .backend import BackendError, FerrumBackend
-from .models import AlbumDetail, AlbumEntry, BandDetail, BandSummary, TrackEntry
+from .models import AlbumDetail, AlbumEntry, BandDetail, BandSummary, SearchHistoryEntry, TrackEntry
 
 APP_ID = "io.github.prezdev.Ferrum"
 THEME_MODES = [
@@ -338,8 +339,12 @@ class FerrumWindow(Adw.ApplicationWindow):
         self.app = app
         self.backend = FerrumBackend()
         self.results: list[BandSummary] = []
+        self.search_history: list[SearchHistoryEntry] = []
         self.selected_band: BandDetail | None = None
         self.discography_list: Gtk.ListBox | None = None
+        self.last_submitted_query = ""
+        self.last_submitted_search_type = SEARCH_TYPES[0][1]
+        self.search_history_dialog: Adw.Dialog | None = None
 
         self.toast_overlay = Adw.ToastOverlay()
         toolbar = Adw.ToolbarView()
@@ -363,6 +368,7 @@ class FerrumWindow(Adw.ApplicationWindow):
         self.toast_overlay.set_child(toolbar)
         self.set_content(self.toast_overlay)
         self.app.apply_theme()
+        self.load_search_history()
 
     def _build_search_surface(self) -> Gtk.Widget:
         surface = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
@@ -382,6 +388,9 @@ class FerrumWindow(Adw.ApplicationWindow):
         self.provider_dropdown = Gtk.DropDown.new_from_strings([label for label, _ in PROVIDERS])
         self.provider_dropdown.set_selected(0)
 
+        self.search_history_button = Gtk.Button(label="View search history")
+        self.search_history_button.connect("clicked", lambda *_: self.present_search_history_dialog())
+
         self.search_button = Gtk.Button(label="Search")
         self.search_button.add_css_class("suggested-action")
         self.search_button.connect("clicked", lambda *_: self.on_search())
@@ -389,6 +398,7 @@ class FerrumWindow(Adw.ApplicationWindow):
         controls.append(self.query_entry)
         controls.append(self.search_type_dropdown)
         controls.append(self.provider_dropdown)
+        controls.append(self.search_history_button)
         controls.append(self.search_button)
 
         surface.append(controls)
@@ -475,14 +485,15 @@ class FerrumWindow(Adw.ApplicationWindow):
             self.toast("Write something first.")
             return
 
+        self.last_submitted_query = query
+        _, self.last_submitted_search_type = SEARCH_TYPES[self.search_type_dropdown.get_selected()]
         self.search_button.set_sensitive(False)
         self.results_count.set_text("Searching…")
         self.results_stack.set_visible_child_name("empty")
         self.clear_detail()
 
-        _, search_type = SEARCH_TYPES[self.search_type_dropdown.get_selected()]
         self.run_task(
-            lambda: self.backend.search(query, search_type),
+            lambda: self.backend.search(query, self.last_submitted_search_type),
             self.populate_results,
         )
 
@@ -532,6 +543,7 @@ class FerrumWindow(Adw.ApplicationWindow):
     def populate_results(self, results: list[BandSummary]) -> bool:
         self.search_button.set_sensitive(True)
         self.results_list.set_sensitive(True)
+        self.remember_search_history_entry(self.last_submitted_query, self.last_submitted_search_type)
         self.results = results
         self.clear_listbox(self.results_list)
 
@@ -549,6 +561,170 @@ class FerrumWindow(Adw.ApplicationWindow):
         self.results_count.set_text(f"{len(results)} matches")
         self.results_stack.set_visible_child_name("list")
         return False
+
+    def load_search_history(self) -> None:
+        def runner() -> None:
+            try:
+                search_history = self.backend.get_search_history()
+            except Exception:
+                return
+            GLib.idle_add(self.apply_search_history, search_history)
+
+        threading.Thread(target=runner, daemon=True).start()
+
+    def apply_search_history(self, search_history: list[SearchHistoryEntry]) -> bool:
+        self.search_history = search_history
+        return False
+
+    def present_search_history_dialog(self) -> None:
+        if not self.search_history:
+            self.toast("No search history yet.")
+            return
+
+        dialog = self.create_modal_dialog("Search history", 760, 560)
+
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        content.set_vexpand(True)
+        content.set_margin_top(18)
+        content.set_margin_bottom(18)
+        content.set_margin_start(18)
+        content.set_margin_end(18)
+
+        title = Gtk.Label(label="Recent searches", xalign=0)
+        title.add_css_class("title-3")
+        content.append(title)
+
+        history_list = Gtk.ListBox()
+        history_list.add_css_class("boxed-list")
+        history_list.set_selection_mode(Gtk.SelectionMode.SINGLE)
+        history_list.set_vexpand(True)
+        history_list.connect("row-activated", self.on_search_history_activated)
+
+        sorted_search_history = sorted(
+            self.search_history[:100],
+            key=lambda suggestion: suggestion.query.casefold(),
+        )
+        for suggestion in sorted_search_history:
+            row = self.build_search_history_row(suggestion)
+            row.search_suggestion = suggestion
+            history_list.append(row)
+
+        scroller = Gtk.ScrolledWindow()
+        scroller.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        scroller.set_hexpand(True)
+        scroller.set_vexpand(True)
+        scroller.set_child(history_list)
+        content.append(scroller)
+
+        dialog.set_child(content)
+        self.search_history_dialog = dialog
+        self.app.apply_theme()
+        dialog.present(self)
+
+    def create_modal_dialog(self, title: str, width: int, height: int) -> Adw.Dialog:
+        dialog = Adw.Dialog()
+        dialog.set_title(title)
+        dialog.set_content_width(width)
+        dialog.set_content_height(height)
+        dialog.set_follows_content_size(False)
+        dialog.set_can_close(True)
+        dialog.set_presentation_mode(Adw.DialogPresentationMode.FLOATING)
+        backdrop_click = Gtk.GestureClick.new()
+        backdrop_click.connect("pressed", self.on_modal_backdrop_pressed, dialog)
+        dialog.add_controller(backdrop_click)
+        return dialog
+
+    def on_modal_backdrop_pressed(
+        self,
+        _gesture: Gtk.GestureClick,
+        _n_press: int,
+        click_x: float,
+        click_y: float,
+        dialog: Adw.Dialog,
+    ) -> None:
+        content = dialog.get_child()
+        if content is None:
+            dialog.close()
+            return
+
+        inside_bounds, bounds = content.compute_bounds(dialog)
+        if not inside_bounds:
+            return
+
+        if self.is_point_inside_rect(click_x, click_y, bounds):
+            return
+
+        dialog.close()
+
+    def is_point_inside_rect(self, point_x: float, point_y: float, rect: Graphene.Rect) -> bool:
+        rect_x = rect.get_x()
+        rect_y = rect.get_y()
+        rect_width = rect.get_width()
+        rect_height = rect.get_height()
+        return (
+            rect_x <= point_x <= rect_x + rect_width
+            and rect_y <= point_y <= rect_y + rect_height
+        )
+
+    def build_search_history_row(self, suggestion: SearchHistoryEntry) -> Gtk.ListBoxRow:
+        row = Gtk.ListBoxRow()
+        row.set_activatable(True)
+
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        box.set_margin_top(10)
+        box.set_margin_bottom(10)
+        box.set_margin_start(12)
+        box.set_margin_end(12)
+
+        query_label = Gtk.Label(label=suggestion.query, xalign=0)
+        query_label.add_css_class("title-4")
+
+        type_label = Gtk.Label(label=self.resolve_search_type_label(suggestion.search_type), xalign=0)
+        type_label.add_css_class("dim-label")
+
+        box.append(query_label)
+        box.append(type_label)
+        row.set_child(box)
+        return row
+
+    def on_search_history_activated(self, _listbox: Gtk.ListBox, row: Gtk.ListBoxRow) -> None:
+        suggestion = getattr(row, "search_suggestion", None)
+        if suggestion is None:
+            return
+
+        self.query_entry.set_text(suggestion.query)
+        self.search_type_dropdown.set_selected(self.resolve_search_type_index(suggestion.search_type))
+        if self.search_history_dialog is not None:
+            self.search_history_dialog.close()
+            self.search_history_dialog = None
+        self.query_entry.grab_focus()
+        self.query_entry.set_position(-1)
+        self.on_search()
+
+    def remember_search_history_entry(self, query: str, search_type: str) -> None:
+        normalized_query = query.strip().lower()
+        if not normalized_query:
+            return
+
+        updated_history = [
+            entry
+            for entry in self.search_history
+            if not (entry.query.lower() == normalized_query and entry.search_type == search_type)
+        ]
+        updated_history.insert(0, SearchHistoryEntry(query=normalized_query, search_type=search_type))
+        self.search_history = updated_history[:100]
+
+    def resolve_search_type_index(self, search_type: str) -> int:
+        for index, (_, value) in enumerate(SEARCH_TYPES):
+            if value == search_type:
+                return index
+        return 0
+
+    def resolve_search_type_label(self, search_type: str) -> str:
+        for label, value in SEARCH_TYPES:
+            if value == search_type:
+                return label
+        return search_type
 
     def build_result_row(self, band: BandSummary) -> Gtk.ListBoxRow:
         row = Gtk.ListBoxRow()

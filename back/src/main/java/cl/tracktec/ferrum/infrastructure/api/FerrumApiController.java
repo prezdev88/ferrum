@@ -1,7 +1,9 @@
 package cl.tracktec.ferrum.infrastructure.api;
 
+import cl.tracktec.ferrum.application.model.SearchHistoryEntry;
 import cl.tracktec.ferrum.application.usecase.GetAlbumDetailsUseCase;
 import cl.tracktec.ferrum.application.usecase.GetBandDetailsUseCase;
+import cl.tracktec.ferrum.application.usecase.GetSearchHistoryUseCase;
 import cl.tracktec.ferrum.application.usecase.SearchBandsUseCase;
 import cl.tracktec.ferrum.domain.AlbumDetail;
 import cl.tracktec.ferrum.domain.BandDetail;
@@ -25,15 +27,18 @@ public class FerrumApiController {
     private final SearchBandsUseCase searchBands;
     private final GetBandDetailsUseCase getBandDetails;
     private final GetAlbumDetailsUseCase getAlbumDetails;
+    private final GetSearchHistoryUseCase getSearchHistory;
 
     public FerrumApiController(
             SearchBandsUseCase searchBands,
             GetBandDetailsUseCase getBandDetails,
-            GetAlbumDetailsUseCase getAlbumDetails
+            GetAlbumDetailsUseCase getAlbumDetails,
+            GetSearchHistoryUseCase getSearchHistory
     ) {
         this.searchBands = searchBands;
         this.getBandDetails = getBandDetails;
         this.getAlbumDetails = getAlbumDetails;
+        this.getSearchHistory = getSearchHistory;
     }
 
     @GetMapping("/search")
@@ -72,6 +77,13 @@ public class FerrumApiController {
     @GetMapping("/health")
     public Map<String, String> health() {
         return Map.of("status", "ok");
+    }
+
+    @GetMapping("/search-history")
+    public List<SearchHistoryEntry> getSearchHistory(
+            @RequestParam(defaultValue = "100") int limit
+    ) {
+        return getSearchHistory.execute(limit);
     }
 
     private BandSearchType parseSearchType(String rawValue) {

@@ -53,3 +53,9 @@ class AlbumDetail:
     label: str
     url: str
     tracks: list[TrackEntry] = field(default_factory=list)
+
+
+@dataclass(slots=True)
+class SearchHistoryEntry:
+    query: str
+    search_type: str

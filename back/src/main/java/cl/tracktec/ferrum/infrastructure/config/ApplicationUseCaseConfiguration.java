@@ -1,8 +1,10 @@
 package cl.tracktec.ferrum.infrastructure.config;
 
 import cl.tracktec.ferrum.application.port.BandSearchGateway;
+import cl.tracktec.ferrum.application.port.SearchHistoryPort;
 import cl.tracktec.ferrum.application.usecase.GetAlbumDetailsUseCase;
 import cl.tracktec.ferrum.application.usecase.GetBandDetailsUseCase;
+import cl.tracktec.ferrum.application.usecase.GetSearchHistoryUseCase;
 import cl.tracktec.ferrum.application.usecase.SearchBandsUseCase;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -23,5 +25,10 @@ public class ApplicationUseCaseConfiguration {
     @Bean
     public GetAlbumDetailsUseCase getAlbumDetailsUseCase(BandSearchGateway bandSearchGateway) {
         return new GetAlbumDetailsUseCase(bandSearchGateway);
+    }
+
+    @Bean
+    public GetSearchHistoryUseCase getSearchHistoryUseCase(SearchHistoryPort searchHistoryPort) {
+        return new GetSearchHistoryUseCase(searchHistoryPort);
     }
 }
