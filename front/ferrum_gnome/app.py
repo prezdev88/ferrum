@@ -443,6 +443,7 @@ class FerrumWindow(Adw.ApplicationWindow):
         self.loading_dialog: LoadingDialog | None = None
         self.discography_type_filter_values: list[str | None] = [None]
         self.discography_type_filter_dropdown: Gtk.DropDown | None = None
+        self.discography_type_filter_by_band: dict[str, str | None] = {}
 
         self.toast_overlay = Adw.ToastOverlay()
         toolbar = Adw.ToolbarView()
@@ -940,7 +941,12 @@ class FerrumWindow(Adw.ApplicationWindow):
         discography_filter_dropdown = Gtk.DropDown.new_from_strings(
             self.resolve_discography_type_filter_labels(self.discography_type_filter_values)
         )
-        discography_filter_dropdown.set_selected(0)
+        selected_type = self.resolve_saved_discography_filter(detail, self.discography_type_filter_values)
+        selected_index = self.resolve_discography_type_filter_index(
+            self.discography_type_filter_values,
+            selected_type,
+        )
+        discography_filter_dropdown.set_selected(selected_index)
         discography_filter_dropdown.connect("notify::selected", self.on_discography_type_filter_selected)
         self.discography_type_filter_dropdown = discography_filter_dropdown
         discography_header.append(discography_filter_dropdown)
@@ -950,7 +956,7 @@ class FerrumWindow(Adw.ApplicationWindow):
         discography_list.set_selection_mode(Gtk.SelectionMode.SINGLE)
         discography_list.connect("row-activated", self.on_album_activated)
         self.discography_list = discography_list
-        self.populate_discography_list(detail, None)
+        self.populate_discography_list(detail, selected_type)
 
         self.detail_content.append(hero)
         self.detail_content.append(metadata)
@@ -982,7 +988,49 @@ class FerrumWindow(Adw.ApplicationWindow):
         if selected_index >= len(self.discography_type_filter_values):
             return
         selected_type = self.discography_type_filter_values[selected_index]
+        band_key = self.resolve_band_filter_key(self.selected_band)
+        if band_key:
+            self.discography_type_filter_by_band[band_key] = selected_type
         self.populate_discography_list(self.selected_band, selected_type)
+
+    def resolve_discography_type_filter_index(
+        self,
+        filters: list[str | None],
+        selected_type: str | None,
+    ) -> int:
+        if selected_type is None:
+            return 0
+        normalized_selected_type = selected_type.casefold()
+        for index, filter_value in enumerate(filters):
+            if filter_value is None:
+                continue
+            if filter_value.casefold() == normalized_selected_type:
+                return index
+        return 0
+
+    def resolve_saved_discography_filter(
+        self,
+        detail: BandDetail,
+        available_filters: list[str | None],
+    ) -> str | None:
+        band_key = self.resolve_band_filter_key(detail)
+        if not band_key:
+            return None
+        saved_filter = self.discography_type_filter_by_band.get(band_key)
+        if saved_filter is None:
+            return None
+        normalized_saved_filter = saved_filter.casefold()
+        for filter_value in available_filters:
+            if filter_value is None:
+                continue
+            if filter_value.casefold() == normalized_saved_filter:
+                return filter_value
+        return None
+
+    def resolve_band_filter_key(self, detail: BandDetail) -> str:
+        if detail.profile_url:
+            return detail.profile_url
+        return (detail.name or "").strip().lower()
 
     def populate_discography_list(self, detail: BandDetail, selected_type: str | None) -> None:
         if self.discography_list is None:
