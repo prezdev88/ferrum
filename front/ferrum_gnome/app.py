@@ -174,6 +174,11 @@ class AlbumDialog(Adw.Dialog):
         open_album.connect("clicked", lambda *_: webbrowser.open(album.url))
         actions.append(open_album)
 
+        search_album = Gtk.Button(label=f"Search on {self.resolve_provider_label()}")
+        search_album.add_css_class("pill")
+        search_album.connect("clicked", lambda *_: self._open_album_in_provider())
+        actions.append(search_album)
+
         hero_text.append(title)
         hero_text.append(subtitle)
         hero_text.append(actions)
@@ -271,6 +276,20 @@ class AlbumDialog(Adw.Dialog):
         else:
             url = f"https://music.youtube.com/search?q={encoded}"
         webbrowser.open(url)
+
+    def _open_album_in_provider(self) -> None:
+        query = " ".join(value for value in [self.band_name, self.album.title] if value)
+        encoded = urllib.parse.quote(query)
+        if self.music_provider == "youtube":
+            url = f"https://www.youtube.com/results?search_query={encoded}"
+        else:
+            url = f"https://music.youtube.com/search?q={encoded}"
+        webbrowser.open(url)
+
+    def resolve_provider_label(self) -> str:
+        if self.music_provider == "youtube":
+            return "YouTube"
+        return "YouTube Music"
 
     def build_remote_artwork(
         self,
