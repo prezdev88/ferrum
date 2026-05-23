@@ -9,10 +9,12 @@ import gi
 import requests
 
 gi.require_version("Gdk", "4.0")
+gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
+gi.require_version("Pango", "1.0")
 
-from gi.repository import Adw, Gdk, Gio, GLib, Gtk
+from gi.repository import Adw, Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango
 
 from .backend import BackendError, FerrumBackend
 from .models import AlbumDetail, AlbumEntry, BandDetail, BandSummary, TrackEntry
@@ -71,14 +73,29 @@ class AlbumWindow(Adw.ApplicationWindow):
         hero.add_css_class("hero-card")
         hero.set_margin_bottom(6)
 
-        hero.append(self.build_remote_artwork(album.image_url, 168, "album-artwork"))
+        hero_content = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=18)
+        hero_content.set_halign(Gtk.Align.START)
+        hero_content.set_hexpand(False)
+
+        hero_content.append(
+            self.build_remote_artwork(
+                album.image_url,
+                132,
+                132,
+                "album-artwork",
+                Gtk.ContentFit.COVER,
+                True,
+            )
+        )
 
         hero_text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
         hero_text.set_hexpand(True)
+        hero_text.set_halign(Gtk.Align.START)
 
         title = Gtk.Label(label=album.title, xalign=0)
         title.set_wrap(True)
         title.add_css_class("title-2")
+        title.set_halign(Gtk.Align.START)
 
         subtitle = Gtk.Label(
             label="  •  ".join(filter(None, [album.type, album.release_date, album.label])),
@@ -86,8 +103,10 @@ class AlbumWindow(Adw.ApplicationWindow):
         )
         subtitle.set_wrap(True)
         subtitle.add_css_class("dim-label")
+        subtitle.set_halign(Gtk.Align.START)
 
         actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        actions.set_halign(Gtk.Align.START)
         open_album = Gtk.Button(label="Open in Metal Archives")
         open_album.add_css_class("pill")
         open_album.connect("clicked", lambda *_: webbrowser.open(album.url))
@@ -96,7 +115,8 @@ class AlbumWindow(Adw.ApplicationWindow):
         hero_text.append(title)
         hero_text.append(subtitle)
         hero_text.append(actions)
-        hero.append(hero_text)
+        hero_content.append(hero_text)
+        hero.append(hero_content)
 
         tracks_box = Gtk.ListBox()
         tracks_box.add_css_class("boxed-list")
@@ -160,26 +180,48 @@ class AlbumWindow(Adw.ApplicationWindow):
             url = f"https://music.youtube.com/search?q={encoded}"
         webbrowser.open(url)
 
-    def build_remote_artwork(self, image_url: str, size: int, css_class: str) -> Gtk.Widget:
+    def build_remote_artwork(
+        self,
+        image_url: str,
+        width: int,
+        height: int,
+        css_class: str,
+        content_fit: Gtk.ContentFit = Gtk.ContentFit.CONTAIN,
+        square_crop: bool = False,
+    ) -> Gtk.Widget:
         frame = Gtk.Frame()
         frame.add_css_class("artwork-frame")
         frame.add_css_class(css_class)
-        frame.set_size_request(size, size)
+        frame.set_size_request(width, height)
+        frame.set_hexpand(False)
+        frame.set_vexpand(False)
+        frame.set_halign(Gtk.Align.START)
+        frame.set_valign(Gtk.Align.START)
+        frame.set_overflow(Gtk.Overflow.HIDDEN)
 
         stack = Gtk.Stack()
+        stack.set_size_request(width, height)
+        stack.set_overflow(Gtk.Overflow.HIDDEN)
 
         placeholder = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        placeholder.set_size_request(width, height)
         placeholder.set_halign(Gtk.Align.CENTER)
         placeholder.set_valign(Gtk.Align.CENTER)
         placeholder.add_css_class("artwork-placeholder")
+        placeholder.set_overflow(Gtk.Overflow.HIDDEN)
 
         icon = Gtk.Image.new_from_icon_name("image-x-generic-symbolic")
-        icon.set_pixel_size(max(32, size // 4))
+        icon.set_pixel_size(max(32, min(width, height) // 4))
         placeholder.append(icon)
 
         picture = Gtk.Picture()
         picture.set_can_shrink(True)
-        picture.set_content_fit(Gtk.ContentFit.COVER)
+        picture.set_content_fit(content_fit)
+        picture.set_keep_aspect_ratio(True)
+        picture.set_size_request(width, height)
+        picture.set_hexpand(False)
+        picture.set_vexpand(False)
+        picture.set_overflow(Gtk.Overflow.HIDDEN)
 
         stack.add_named(placeholder, "placeholder")
         stack.add_named(picture, "image")
@@ -187,22 +229,61 @@ class AlbumWindow(Adw.ApplicationWindow):
         frame.set_child(stack)
 
         if image_url:
-            self.load_remote_artwork(image_url, picture, stack)
+            self.load_remote_artwork(image_url, picture, stack, width, height, square_crop)
 
         return frame
 
-    def load_remote_artwork(self, image_url: str, picture: Gtk.Picture, stack: Gtk.Stack) -> None:
+    def load_remote_artwork(
+        self,
+        image_url: str,
+        picture: Gtk.Picture,
+        stack: Gtk.Stack,
+        width: int,
+        height: int,
+        square_crop: bool,
+    ) -> None:
         def runner() -> None:
             try:
                 response = requests.get(image_url, timeout=30)
                 response.raise_for_status()
-                texture = Gdk.Texture.new_from_bytes(GLib.Bytes.new(response.content))
+                texture = self.build_texture(response.content, width, height, square_crop)
             except Exception:
                 return
 
             GLib.idle_add(self.apply_remote_artwork, picture, stack, texture)
 
         threading.Thread(target=runner, daemon=True).start()
+
+    def build_texture(
+        self,
+        image_bytes: bytes,
+        width: int,
+        height: int,
+        square_crop: bool,
+    ) -> Gdk.Texture:
+        if not square_crop:
+            return Gdk.Texture.new_from_bytes(GLib.Bytes.new(image_bytes))
+
+        loader = GdkPixbuf.PixbufLoader()
+        loader.write(image_bytes)
+        loader.close()
+        pixbuf = loader.get_pixbuf()
+        if pixbuf is None:
+            raise ValueError("Could not decode artwork")
+
+        if square_crop:
+            pixbuf = self.crop_center_square(pixbuf)
+
+        scaled_pixbuf = pixbuf.scale_simple(width, height, GdkPixbuf.InterpType.BILINEAR)
+        if scaled_pixbuf is None:
+            raise ValueError("Could not scale artwork")
+        return Gdk.Texture.new_for_pixbuf(scaled_pixbuf)
+
+    def crop_center_square(self, pixbuf: GdkPixbuf.Pixbuf) -> GdkPixbuf.Pixbuf:
+        crop_size = min(pixbuf.get_width(), pixbuf.get_height())
+        offset_x = (pixbuf.get_width() - crop_size) // 2
+        offset_y = (pixbuf.get_height() - crop_size) // 2
+        return pixbuf.new_subpixbuf(offset_x, offset_y, crop_size, crop_size)
 
     def apply_remote_artwork(
         self,
@@ -438,16 +519,22 @@ class FerrumWindow(Adw.ApplicationWindow):
         box.set_margin_bottom(12)
         box.set_margin_start(14)
         box.set_margin_end(14)
+        box.set_hexpand(True)
 
         title = Gtk.Label(label=band.name or "Unknown band", xalign=0)
         title.add_css_class("title-4")
+        title.set_hexpand(True)
+        title.set_ellipsize(Pango.EllipsizeMode.END)
+        title.set_lines(1)
 
         summary = Gtk.Label(
             label="  •  ".join(filter(None, [band.country, band.genre, band.status])),
             xalign=0,
         )
         summary.add_css_class("dim-label")
-        summary.set_wrap(True)
+        summary.set_hexpand(True)
+        summary.set_ellipsize(Pango.EllipsizeMode.END)
+        summary.set_lines(1)
 
         box.append(title)
         box.append(summary)
@@ -464,25 +551,41 @@ class FerrumWindow(Adw.ApplicationWindow):
         hero.add_css_class("card")
         hero.add_css_class("hero-card")
 
-        hero.append(self.build_remote_artwork(detail.image_url, 184, "band-artwork"))
+        hero_content = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=18)
+        hero_content.set_halign(Gtk.Align.START)
+        hero_content.set_hexpand(False)
+
+        hero_content.append(
+            self.build_remote_artwork(
+                detail.image_url,
+                296,
+                184,
+                "band-artwork",
+                Gtk.ContentFit.CONTAIN,
+            )
+        )
 
         hero_text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
         hero_text.set_hexpand(True)
+        hero_text.set_halign(Gtk.Align.START)
 
         title = Gtk.Label(label=detail.name or "Unknown band", xalign=0)
         title.add_css_class("title-1")
         title.set_wrap(True)
+        title.set_halign(Gtk.Align.START)
 
         chips = Gtk.FlowBox()
         chips.set_selection_mode(Gtk.SelectionMode.NONE)
         chips.set_max_children_per_line(6)
         chips.set_row_spacing(8)
         chips.set_column_spacing(8)
+        chips.set_halign(Gtk.Align.START)
         for value in [detail.country, detail.status, detail.genre]:
             if value:
                 chips.insert(self.build_chip(value), -1)
 
         hero_actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        hero_actions.set_halign(Gtk.Align.START)
         if detail.profile_url:
             profile_button = Gtk.Button(label="Open in browser")
             profile_button.add_css_class("pill")
@@ -492,7 +595,8 @@ class FerrumWindow(Adw.ApplicationWindow):
         hero_text.append(title)
         hero_text.append(chips)
         hero_text.append(hero_actions)
-        hero.append(hero_text)
+        hero_content.append(hero_text)
+        hero.append(hero_content)
 
         metadata = Gtk.Grid(column_spacing=18, row_spacing=10)
         metadata.add_css_class("card")
@@ -558,20 +662,32 @@ class FerrumWindow(Adw.ApplicationWindow):
         box.set_margin_start(14)
         box.set_margin_end(14)
 
-        artwork = self.build_remote_artwork(album.image_url, 64, "discography-artwork")
+        artwork = self.build_remote_artwork(
+            album.image_url,
+            64,
+            64,
+            "discography-artwork",
+            Gtk.ContentFit.COVER,
+            True,
+        )
 
         text_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         text_box.set_hexpand(True)
 
         title = Gtk.Label(label=album.title or "Untitled release", xalign=0)
         title.add_css_class("title-4")
-        title.set_wrap(True)
+        title.set_hexpand(True)
+        title.set_ellipsize(Pango.EllipsizeMode.END)
+        title.set_lines(1)
 
         summary = Gtk.Label(
             label="  •  ".join(filter(None, [album.year, album.type])),
             xalign=0,
         )
         summary.add_css_class("dim-label")
+        summary.set_hexpand(True)
+        summary.set_ellipsize(Pango.EllipsizeMode.END)
+        summary.set_lines(1)
 
         text_box.append(title)
         text_box.append(summary)
@@ -623,26 +739,48 @@ class FerrumWindow(Adw.ApplicationWindow):
         label.add_css_class("chip")
         return label
 
-    def build_remote_artwork(self, image_url: str, size: int, css_class: str) -> Gtk.Widget:
+    def build_remote_artwork(
+        self,
+        image_url: str,
+        width: int,
+        height: int,
+        css_class: str,
+        content_fit: Gtk.ContentFit = Gtk.ContentFit.CONTAIN,
+        square_crop: bool = False,
+    ) -> Gtk.Widget:
         frame = Gtk.Frame()
         frame.add_css_class("artwork-frame")
         frame.add_css_class(css_class)
-        frame.set_size_request(size, size)
+        frame.set_size_request(width, height)
+        frame.set_hexpand(False)
+        frame.set_vexpand(False)
+        frame.set_halign(Gtk.Align.START)
+        frame.set_valign(Gtk.Align.START)
+        frame.set_overflow(Gtk.Overflow.HIDDEN)
 
         stack = Gtk.Stack()
+        stack.set_size_request(width, height)
+        stack.set_overflow(Gtk.Overflow.HIDDEN)
 
         placeholder = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        placeholder.set_size_request(width, height)
         placeholder.set_halign(Gtk.Align.CENTER)
         placeholder.set_valign(Gtk.Align.CENTER)
         placeholder.add_css_class("artwork-placeholder")
+        placeholder.set_overflow(Gtk.Overflow.HIDDEN)
 
         icon = Gtk.Image.new_from_icon_name("image-x-generic-symbolic")
-        icon.set_pixel_size(max(32, size // 4))
+        icon.set_pixel_size(max(32, min(width, height) // 4))
         placeholder.append(icon)
 
         picture = Gtk.Picture()
         picture.set_can_shrink(True)
-        picture.set_content_fit(Gtk.ContentFit.COVER)
+        picture.set_content_fit(content_fit)
+        picture.set_keep_aspect_ratio(True)
+        picture.set_size_request(width, height)
+        picture.set_hexpand(False)
+        picture.set_vexpand(False)
+        picture.set_overflow(Gtk.Overflow.HIDDEN)
 
         stack.add_named(placeholder, "placeholder")
         stack.add_named(picture, "image")
@@ -650,22 +788,61 @@ class FerrumWindow(Adw.ApplicationWindow):
         frame.set_child(stack)
 
         if image_url:
-            self.load_remote_artwork(image_url, picture, stack)
+            self.load_remote_artwork(image_url, picture, stack, width, height, square_crop)
 
         return frame
 
-    def load_remote_artwork(self, image_url: str, picture: Gtk.Picture, stack: Gtk.Stack) -> None:
+    def load_remote_artwork(
+        self,
+        image_url: str,
+        picture: Gtk.Picture,
+        stack: Gtk.Stack,
+        width: int,
+        height: int,
+        square_crop: bool,
+    ) -> None:
         def runner() -> None:
             try:
                 response = requests.get(image_url, timeout=30)
                 response.raise_for_status()
-                texture = Gdk.Texture.new_from_bytes(GLib.Bytes.new(response.content))
+                texture = self.build_texture(response.content, width, height, square_crop)
             except Exception:
                 return
 
             GLib.idle_add(self.apply_remote_artwork, picture, stack, texture)
 
         threading.Thread(target=runner, daemon=True).start()
+
+    def build_texture(
+        self,
+        image_bytes: bytes,
+        width: int,
+        height: int,
+        square_crop: bool,
+    ) -> Gdk.Texture:
+        if not square_crop:
+            return Gdk.Texture.new_from_bytes(GLib.Bytes.new(image_bytes))
+
+        loader = GdkPixbuf.PixbufLoader()
+        loader.write(image_bytes)
+        loader.close()
+        pixbuf = loader.get_pixbuf()
+        if pixbuf is None:
+            raise ValueError("Could not decode artwork")
+
+        if square_crop:
+            pixbuf = self.crop_center_square(pixbuf)
+
+        scaled_pixbuf = pixbuf.scale_simple(width, height, GdkPixbuf.InterpType.BILINEAR)
+        if scaled_pixbuf is None:
+            raise ValueError("Could not scale artwork")
+        return Gdk.Texture.new_for_pixbuf(scaled_pixbuf)
+
+    def crop_center_square(self, pixbuf: GdkPixbuf.Pixbuf) -> GdkPixbuf.Pixbuf:
+        crop_size = min(pixbuf.get_width(), pixbuf.get_height())
+        offset_x = (pixbuf.get_width() - crop_size) // 2
+        offset_y = (pixbuf.get_height() - crop_size) // 2
+        return pixbuf.new_subpixbuf(offset_x, offset_y, crop_size, crop_size)
 
     def apply_remote_artwork(
         self,
@@ -798,7 +975,7 @@ class StartupWindow(Adw.ApplicationWindow):
 
 class FerrumApp(Adw.Application):
     def __init__(self) -> None:
-        super().__init__(application_id=APP_ID, flags=Gio.ApplicationFlags.DEFAULT_FLAGS)
+        super().__init__(application_id=APP_ID, flags=Gio.ApplicationFlags.NON_UNIQUE)
         self.connect("activate", self.on_activate)
 
     def on_activate(self, *_args) -> None:
