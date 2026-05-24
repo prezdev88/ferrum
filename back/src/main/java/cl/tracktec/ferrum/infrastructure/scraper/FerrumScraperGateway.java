@@ -216,6 +216,7 @@ public class FerrumScraperGateway implements BandSearchGateway {
                         () -> page.navigate(profileUrl,
                                 new Page.NavigateOptions().setWaitUntil(WaitUntilState.DOMCONTENTLOADED))
                 );
+                waitForDiscographyDom();
             } catch (TimeoutError ignored) {
                 // Banda sin discografía o tab de disco no activo — igual procesamos
             }
@@ -224,6 +225,17 @@ public class FerrumScraperGateway implements BandSearchGateway {
 
         } catch (Exception e) {
             throw new RuntimeException("Error al obtener detalles: " + e.getMessage(), e);
+        }
+    }
+
+    private void waitForDiscographyDom() {
+        try {
+            page.waitForSelector(
+                    "div#band_disco table.discog tbody tr",
+                    new Page.WaitForSelectorOptions().setTimeout(15_000)
+            );
+        } catch (TimeoutError ignored) {
+            // Algunas bandas no exponen tabla o el sitio cambia el markup; parseamos lo disponible.
         }
     }
 

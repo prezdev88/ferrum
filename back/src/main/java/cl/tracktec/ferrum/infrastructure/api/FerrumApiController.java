@@ -1,6 +1,7 @@
 package cl.tracktec.ferrum.infrastructure.api;
 
 import cl.tracktec.ferrum.application.model.SearchHistoryEntry;
+import cl.tracktec.ferrum.application.usecase.ClearBandCacheUseCase;
 import cl.tracktec.ferrum.application.usecase.GetAlbumDetailsUseCase;
 import cl.tracktec.ferrum.application.usecase.GetBandDetailsUseCase;
 import cl.tracktec.ferrum.application.usecase.GetSearchHistoryUseCase;
@@ -10,6 +11,7 @@ import cl.tracktec.ferrum.domain.BandDetail;
 import cl.tracktec.ferrum.domain.BandSearchType;
 import cl.tracktec.ferrum.domain.BandSummary;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -28,17 +30,20 @@ public class FerrumApiController {
     private final GetBandDetailsUseCase getBandDetails;
     private final GetAlbumDetailsUseCase getAlbumDetails;
     private final GetSearchHistoryUseCase getSearchHistory;
+    private final ClearBandCacheUseCase clearBandCache;
 
     public FerrumApiController(
             SearchBandsUseCase searchBands,
             GetBandDetailsUseCase getBandDetails,
             GetAlbumDetailsUseCase getAlbumDetails,
-            GetSearchHistoryUseCase getSearchHistory
+            GetSearchHistoryUseCase getSearchHistory,
+            ClearBandCacheUseCase clearBandCache
     ) {
         this.searchBands = searchBands;
         this.getBandDetails = getBandDetails;
         this.getAlbumDetails = getAlbumDetails;
         this.getSearchHistory = getSearchHistory;
+        this.clearBandCache = clearBandCache;
     }
 
     @GetMapping("/search")
@@ -84,6 +89,16 @@ public class FerrumApiController {
             @RequestParam(defaultValue = "100") int limit
     ) {
         return getSearchHistory.execute(limit);
+    }
+
+    @DeleteMapping("/band-cache")
+    public Map<String, String> clearBandCache(@RequestParam String url) {
+        try {
+            clearBandCache.execute(url);
+            return Map.of("status", "ok");
+        } catch (RuntimeException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, e.getMessage(), e);
+        }
     }
 
     private BandSearchType parseSearchType(String rawValue) {

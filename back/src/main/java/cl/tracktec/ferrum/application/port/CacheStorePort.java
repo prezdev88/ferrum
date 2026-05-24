@@ -9,4 +9,6 @@ public interface CacheStorePort {
     <T> Optional<T> read(CacheDescriptor descriptor, CachePayloadType<T> payloadType);
 
     <T> void write(CacheDescriptor descriptor, T payload);
+
+    void delete(CacheDescriptor descriptor);
 }

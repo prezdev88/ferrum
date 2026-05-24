@@ -557,6 +557,9 @@ function renderBandDetail(detail) {
   artworkMount.replaceWith(createArtworkNode(detail.image_url, "artwork"));
 
   const favoriteButton = document.getElementById("favoriteButton");
+  if (favoriteButton && isFavoriteBand(detail.profile_url)) {
+    favoriteButton.classList.add("favoriteStarActive");
+  }
   favoriteButton?.addEventListener("click", () => toggleFavorite(detail));
 
   const openProfileButton = document.getElementById("openProfileButton");

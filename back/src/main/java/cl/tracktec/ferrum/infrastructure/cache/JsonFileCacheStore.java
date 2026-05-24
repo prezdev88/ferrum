@@ -73,6 +73,11 @@ public class JsonFileCacheStore implements CacheStorePort {
         }
     }
 
+    @Override
+    public void delete(CacheDescriptor descriptor) {
+        deleteQuietly(resolveCacheFile(descriptor.namespace(), descriptor.key()));
+    }
+
     private <T> CacheEntry<T> readEntry(
             Path cacheFile,
             CacheDescriptor descriptor,
