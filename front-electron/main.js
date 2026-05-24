@@ -205,6 +205,39 @@ function httpGetJson(url) {
   });
 }
 
+function httpRequestJson(method, url) {
+  return new Promise((resolve, reject) => {
+    const request = net.request({ method, url });
+
+    request.on("response", (response) => {
+      let body = "";
+      response.on("data", (chunk) => {
+        body += chunk.toString("utf-8");
+      });
+      response.on("end", () => {
+        if (response.statusCode && response.statusCode >= 400) {
+          reject(new Error(`HTTP ${response.statusCode} for ${url}`));
+          return;
+        }
+
+        if (!body.trim()) {
+          resolve({});
+          return;
+        }
+
+        try {
+          resolve(JSON.parse(body));
+        } catch (e) {
+          reject(e);
+        }
+      });
+    });
+
+    request.on("error", reject);
+    request.end();
+  });
+}
+
 async function waitForBackend(backendUrl, timeoutMs = 60_000) {
   const deadline = Date.now() + timeoutMs;
   let lastError;
@@ -374,6 +407,12 @@ ipcMain.handle("api-get-search-history", async () => {
   } catch {
     return [];
   }
+});
+
+ipcMain.handle("api-clear-band-cache", async (_event, { profileUrl }) => {
+  const backendUrl = requireBackendUrl();
+  const url = `${backendUrl}/api/band-cache?url=${encodeURIComponent(String(profileUrl ?? "").trim())}`;
+  return httpRequestJson("DELETE", url);
 });
 
 ipcMain.handle("settings-load", () => loadSettings());

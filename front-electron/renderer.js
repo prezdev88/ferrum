@@ -25,6 +25,7 @@ const elements = {
   searchTypeSelect: document.getElementById("searchType"),
   menuButton: document.getElementById("menuButton"),
   appMenu: document.getElementById("appMenu"),
+  menuRefreshBandButton: document.getElementById("menuRefreshBandButton"),
   menuSettingsButton: document.getElementById("menuSettingsButton"),
   menuHistoryButton: document.getElementById("menuHistoryButton"),
   menuQuitButton: document.getElementById("menuQuitButton"),
@@ -579,6 +580,7 @@ function renderBandDetail(detail) {
   });
 
   renderDiscography(detail);
+  updateAppMenuState();
 }
 
 function resolveDiscographyFilters(discography) {
@@ -846,6 +848,36 @@ function closeAppMenu() {
   toggleAppMenu(false);
 }
 
+async function refreshSelectedBandFromEndpoint() {
+  const detail = state.selectedBandDetail;
+  if (!detail?.profile_url) {
+    return;
+  }
+
+  presentTaskLoading("Refreshing band", `Fetching fresh data for ${detail.name || "selected band"}...`);
+  try {
+    await globalThis.ferrum.api.clearBandCache(detail.profile_url);
+    const refreshedDetail = await globalThis.ferrum.api.getBand(detail.profile_url);
+    renderBandDetail(normalizeBandDetail(refreshedDetail));
+  } catch (error) {
+    window.alert(error?.message || "Could not refresh artist data.");
+  } finally {
+    closeTaskLoading();
+  }
+}
+
+function updateAppMenuState() {
+  const selectedBandName = state.selectedBandDetail?.name?.trim();
+  if (selectedBandName) {
+    elements.menuRefreshBandButton.disabled = false;
+    elements.menuRefreshBandButton.textContent = `Refresh ${selectedBandName}`;
+    return;
+  }
+
+  elements.menuRefreshBandButton.disabled = true;
+  elements.menuRefreshBandButton.textContent = "Refresh selected band";
+}
+
 function renderSettingsColorRows() {
   elements.settingsColorList.replaceChildren();
   const albumTypes = Object.keys(state.settings.albumTypeColors).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
@@ -1019,6 +1051,11 @@ elements.menuButton.addEventListener("click", (event) => {
   toggleAppMenu();
 });
 
+elements.menuRefreshBandButton.addEventListener("click", async () => {
+  closeAppMenu();
+  await refreshSelectedBandFromEndpoint();
+});
+
 elements.menuSettingsButton.addEventListener("click", () => {
   closeAppMenu();
   openSettingsModal();
@@ -1103,4 +1140,5 @@ globalThis.ferrum.ui.onCommand((payload) => {
 
 showResultsEmpty("Start with a band, genre or theme", "Search results will appear here and load band details on selection.");
 showDetailPlaceholder("Band details live here", "Pick a result to inspect line-up context, metadata and discography.");
+updateAppMenuState();
 bootstrap();
