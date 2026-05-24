@@ -1,7 +1,6 @@
 package cl.tracktec.ferrum.application.usecase;
 
 import cl.tracktec.ferrum.application.port.CacheStorePort;
-import cl.tracktec.ferrum.domain.AlbumDetail;
 import cl.tracktec.ferrum.domain.BandDetail;
 import cl.tracktec.ferrum.infrastructure.cache.CacheDescriptor;
 import cl.tracktec.ferrum.infrastructure.cache.CachePayloadType;
@@ -12,7 +11,6 @@ import java.util.Optional;
 public class ClearBandCacheUseCase {
 
     private static final CachePayloadType<BandDetail> BAND_PAYLOAD_TYPE = CachePayloadType.of(BandDetail.class);
-    private static final CachePayloadType<AlbumDetail> ALBUM_PAYLOAD_TYPE = CachePayloadType.of(AlbumDetail.class);
 
     private final CacheStorePort cacheStore;
     private final CachePolicy cachePolicy;
@@ -36,7 +34,6 @@ public class ClearBandCacheUseCase {
     }
 
     private void deleteAlbumCache(CacheDescriptor descriptor) {
-        cacheStore.read(descriptor, ALBUM_PAYLOAD_TYPE);
         cacheStore.delete(descriptor);
     }
 }
