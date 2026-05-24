@@ -413,9 +413,21 @@
       }
 
       .bandHeroCard {
-        grid-template-columns: 1fr;
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        grid-template-columns: minmax(0, 1fr) minmax(260px, 420px);
+        align-items: center;
         padding-top: 24px;
         padding-bottom: 24px;
+        background: #000000;
+        margin-bottom: 18px;
+        box-shadow: 0 0 0 18px var(--panel);
+      }
+
+      .bandHeroText {
+        min-width: 0;
+        max-width: min(100%, 760px);
       }
 
       .artwork {
@@ -427,6 +439,13 @@
         object-fit: contain;
         object-position: center;
         padding: 16px 8px;
+      }
+
+      .artwork.bandHeroArtwork {
+        justify-self: end;
+        border: none;
+        object-position: right center;
+        padding: 0 28px 0 16px;
       }
 
       .artworkSquare {
@@ -455,6 +474,26 @@
         padding: 6px 10px;
         color: var(--muted);
         font-size: 12px;
+      }
+
+      .statusChip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        padding: 6px 0;
+      }
+
+      .statusDot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: #ef4444;
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+      }
+
+      .statusDot.isActive {
+        background: #22c55e;
       }
 
       .albumTypeBadge {
@@ -839,6 +878,10 @@
         .heroCard {
           grid-template-columns: 1fr;
         }
+
+        .bandHeroCard {
+          grid-template-columns: 1fr;
+        }
       }
     </style>
   </head>
@@ -891,7 +934,7 @@
             <div class="spacer"></div>
             <button class="tabButton" id="favoritesToggle" type="button">Favorites</button>
           </div>
-          <div class="resultsBody">
+          <div class="resultsBody" id="resultsBody">
             <ul class="resultsList hidden" id="resultsList"></ul>
             <div class="statusCard" id="resultsEmpty">
               <div>

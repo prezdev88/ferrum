@@ -92,6 +92,7 @@ const elements = {
   searchButton: document.getElementById("searchButton"),
   resultsHeading: document.getElementById("resultsHeading"),
   resultsCount: document.getElementById("resultsCount"),
+  resultsBody: document.getElementById("resultsBody"),
   resultsList: document.getElementById("resultsList"),
   resultsEmpty: document.getElementById("resultsEmpty"),
   resultsEmptyTitle: document.getElementById("resultsEmptyTitle"),
@@ -121,6 +122,10 @@ const state = {
   backendReady: false,
   historyLoaded: false,
   resultsMode: "search",
+  resultsScrollTop: {
+    search: 0,
+    favorites: 0
+  },
   isSearching: false,
   isLoadingBand: false,
   results: [],
@@ -527,6 +532,7 @@ function getVisibleResults() {
 
 function renderResultsList() {
   const items = getVisibleResults();
+  const previousScrollTop = state.resultsScrollTop[state.resultsMode] ?? 0;
   elements.resultsList.replaceChildren();
   syncResultsHeader();
   syncResultsCount();
@@ -561,6 +567,10 @@ function renderResultsList() {
 
   elements.resultsEmpty.classList.add("hidden");
   elements.resultsList.classList.remove("hidden");
+  elements.resultsBody.scrollTop = previousScrollTop;
+  requestAnimationFrame(() => {
+    elements.resultsBody.scrollTop = previousScrollTop;
+  });
 }
 
 function createArtworkNode(src, className) {
@@ -582,6 +592,17 @@ function createArtworkNode(src, className) {
   return fallback;
 }
 
+function renderBandStatusChip(status) {
+  if (!status) {
+    return "";
+  }
+
+  const normalized = String(status).trim().toLowerCase();
+  const isActive = normalized === "active";
+  const title = String(status).trim();
+  return `<span class="chip statusChip" title="${escapeHtml(title)}"><span class="statusDot${isActive ? " isActive" : ""}"></span></span>`;
+}
+
 function renderBandDetail(detail) {
   for (const album of detail.discography) {
     ensureAlbumTypeColor(album.type);
@@ -589,9 +610,17 @@ function renderBandDetail(detail) {
   state.selectedBandDetail = detail;
   showDetailContent();
 
-  const chips = [detail.country, detail.status, detail.genre]
+  const countryFlag = countryToFlag(detail.country);
+  const countryLocation = [detail.country, detail.location].filter(Boolean).join(", ");
+  const formedLabel = detail.formed_in ? `Since ${detail.formed_in}` : null;
+  const chips = [
+    renderBandStatusChip(detail.status),
+    countryLocation ? `<span class="chip">${escapeHtml(`${countryFlag ? `${countryFlag} ` : ""}${countryLocation}`)}</span>` : "",
+    detail.genre ? `<span class="chip">${escapeHtml(detail.genre)}</span>` : "",
+    formedLabel ? `<span class="chip">${escapeHtml(formedLabel)}</span>` : "",
+    detail.years_active ? `<span class="chip">${escapeHtml(detail.years_active)}</span>` : ""
+  ]
     .filter(Boolean)
-    .map((value) => `<span class="chip">${escapeHtml(value)}</span>`)
     .join("");
 
   const favoriteLabel = isFavoriteBand(detail.profile_url) ? "★" : "☆";
@@ -599,8 +628,7 @@ function renderBandDetail(detail) {
 
   elements.detailContent.innerHTML = `
     <section class="heroCard bandHeroCard">
-      <div id="bandHeroArtwork"></div>
-      <div>
+      <div class="bandHeroText">
         <div class="heroTitle">${escapeHtml(detail.name || "Unknown band")}</div>
         <div class="chips">${chips}</div>
         <div class="heroActions">
@@ -612,14 +640,7 @@ function renderBandDetail(detail) {
           }
         </div>
       </div>
-    </section>
-    <section class="metaGrid">
-      <div class="metaKey">Country</div><div class="metaValue">${escapeHtml(detail.country || "—")}</div>
-      <div class="metaKey">Location</div><div class="metaValue">${escapeHtml(detail.location || "—")}</div>
-      <div class="metaKey">Formed in</div><div class="metaValue">${escapeHtml(detail.formed_in || "—")}</div>
-      <div class="metaKey">Years active</div><div class="metaValue">${escapeHtml(detail.years_active || "—")}</div>
-      <div class="metaKey">Themes</div><div class="metaValue">${escapeHtml(detail.lyrical_themes || "—")}</div>
-      <div class="metaKey">Label</div><div class="metaValue">${escapeHtml(detail.label || "—")}</div>
+      <div id="bandHeroArtwork"></div>
     </section>
     <section class="sectionCard">
       <div class="sectionHeader">
@@ -631,7 +652,9 @@ function renderBandDetail(detail) {
   `;
 
   const artworkMount = document.getElementById("bandHeroArtwork");
-  artworkMount.replaceWith(createArtworkNode(detail.image_url, "artwork"));
+  const artworkNode = createArtworkNode(detail.image_url, "artwork");
+  artworkNode.classList.add("bandHeroArtwork");
+  artworkMount.replaceWith(artworkNode);
 
   const favoriteButton = document.getElementById("favoriteButton");
   if (favoriteButton && isFavoriteBand(detail.profile_url)) {
@@ -733,6 +756,7 @@ async function onBandSelected(band) {
     return;
   }
 
+  state.resultsScrollTop[state.resultsMode] = elements.resultsBody.scrollTop;
   state.selectedBandSummary = band;
   renderResultsList();
   setLoadingBand(true, band.name);
@@ -746,6 +770,7 @@ async function onBandSelected(band) {
     closeTaskLoading();
     state.isLoadingBand = false;
     elements.resultsList.style.pointerEvents = "";
+    elements.resultsBody.scrollTop = state.resultsScrollTop[state.resultsMode] ?? 0;
   }
 }
 
@@ -1122,8 +1147,13 @@ elements.searchForm.addEventListener("submit", (event) => {
 });
 
 elements.favoritesToggle.addEventListener("click", () => {
+  state.resultsScrollTop[state.resultsMode] = elements.resultsBody.scrollTop;
   state.resultsMode = state.resultsMode === "favorites" ? "search" : "favorites";
   renderResultsList();
+});
+
+elements.resultsBody.addEventListener("scroll", () => {
+  state.resultsScrollTop[state.resultsMode] = elements.resultsBody.scrollTop;
 });
 
 elements.menuButton.addEventListener("click", (event) => {
