@@ -393,8 +393,16 @@
 
       .detailScroll {
         height: 100%;
-        overflow: auto;
+        overflow: hidden;
         padding: 18px;
+      }
+
+      #detailContent {
+        height: 100%;
+        min-height: 0;
+        display: grid;
+        grid-template-rows: auto 1fr;
+        gap: 16px;
       }
 
       .heroCard,
@@ -413,17 +421,13 @@
       }
 
       .bandHeroCard {
-        position: sticky;
-        top: 0;
-        z-index: 5;
         grid-template-columns: minmax(0, 1fr) minmax(260px, 420px);
         align-items: center;
         padding-top: 24px;
         padding-bottom: 24px;
         background: #000000;
         color: #f5f5f5;
-        margin-bottom: 18px;
-        box-shadow: 0 0 0 18px var(--panel);
+        margin-bottom: 0;
       }
 
       .bandHeroCard .chip {
@@ -563,10 +567,22 @@
         padding: 16px;
       }
 
+      .discographySection {
+        margin-top: 0;
+        min-height: 0;
+        display: grid;
+        grid-template-rows: auto 1fr;
+        overflow: hidden;
+      }
+
       .sectionHeader {
         display: flex;
         align-items: center;
         gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .discographyHeader {
         margin-bottom: 12px;
       }
 
@@ -582,6 +598,9 @@
       .albumList {
         display: grid;
         gap: 8px;
+        min-height: 0;
+        overflow: auto;
+        padding-right: 4px;
       }
 
       .albumRow {

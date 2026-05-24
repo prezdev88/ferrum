@@ -642,8 +642,8 @@ function renderBandDetail(detail) {
       </div>
       <div id="bandHeroArtwork"></div>
     </section>
-    <section class="sectionCard">
-      <div class="sectionHeader">
+    <section class="sectionCard discographySection">
+      <div class="sectionHeader discographyHeader">
         <div class="sectionTitle">Discography</div>
         <select class="searchSelect discographyFilter" id="discographyFilter"></select>
       </div>
