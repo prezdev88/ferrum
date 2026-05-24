@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.1.0](https://github.com/prezdev88/ferrum/compare/v1.0.0...v1.1.0) (2026-05-24)
+
+
+### Features
+
+* add country flag functionality based on ISO codes in band results ([546ed75](https://github.com/prezdev88/ferrum/commit/546ed75e20a5bbafed6dc99d13fbd9d6f52999b9))
+* add favorite logo opacity and image-only settings for favorites ([8d07d8b](https://github.com/prezdev88/ferrum/commit/8d07d8bb5196757e1b8db26a21ec20a7360031c8))
+* add refresh functionality for selected band and clear band cache API ([6fab621](https://github.com/prezdev88/ferrum/commit/6fab621b23df3ec91762bae4ef176005e00fffe0))
+* add support for explicit backend JAR path configuration ([f843552](https://github.com/prezdev88/ferrum/commit/f8435524f91dac0cb74726112096ae3bdc377db4))
+* **electron:** initialize front-electron app with preload and renderer scripts ([016ed4f](https://github.com/prezdev88/ferrum/commit/016ed4f09c4aa0443e0f39f0dc5f87b23a8b2479))
+* enhance band hero card layout and add status chip functionality ([e22f5e2](https://github.com/prezdev88/ferrum/commit/e22f5e2d534b9d9cb28f17b1a663b921041dacfc))
+* enhance band hero card styling and add z-index for modal ([24dbd73](https://github.com/prezdev88/ferrum/commit/24dbd73813cc6fa5be99e331bcacc8d1f59c8923))
+* enhance band hero card styling and adjust album list alignment ([3acf3f5](https://github.com/prezdev88/ferrum/commit/3acf3f5292a508fc6708e9a31a3a8894341ec036))
+* enhance band hero card styling and update markup in renderer ([20ffacf](https://github.com/prezdev88/ferrum/commit/20ffacfe0fa9a214b4e5ea24ef865813ecd999c3))
+* implement ClearBandCacheUseCase and add API endpoint for clearing band cache ([dc5c400](https://github.com/prezdev88/ferrum/commit/dc5c400a4701b045668357634864e1da930a95ed))
+* update discography section layout and enhance styling for better visibility ([c74b7bc](https://github.com/prezdev88/ferrum/commit/c74b7bc919480d446d4baf561c4434ec42d3cec0))
+
 ## 1.0.0 (2026-05-24)
 
 
