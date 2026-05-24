@@ -421,8 +421,26 @@
         padding-top: 24px;
         padding-bottom: 24px;
         background: #000000;
+        color: #f5f5f5;
         margin-bottom: 18px;
         box-shadow: 0 0 0 18px var(--panel);
+      }
+
+      .bandHeroCard .chip {
+        border-color: rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.04);
+        color: rgba(245, 245, 245, 0.72);
+      }
+
+      .bandHeroCard .button {
+        border-color: rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.06);
+        color: #f5f5f5;
+      }
+
+      .bandHeroCard .button:hover {
+        border-color: rgba(255, 255, 255, 0.18);
+        background: rgba(255, 255, 255, 0.1);
       }
 
       .bandHeroText {
@@ -626,6 +644,7 @@
       .modal {
         position: fixed;
         inset: 0;
+        z-index: 50;
         background: rgba(2, 4, 8, 0.72);
         backdrop-filter: blur(10px);
         display: grid;
