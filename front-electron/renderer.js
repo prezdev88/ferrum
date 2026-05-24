@@ -11,6 +11,66 @@ const SEARCH_TYPE_LABELS = {
 };
 
 const THEME_MODES = ["system", "light", "dark", "black"];
+const COUNTRY_TO_ISO = {
+  argentina: "AR",
+  australia: "AU",
+  austria: "AT",
+  belgium: "BE",
+  brazil: "BR",
+  bulgaria: "BG",
+  canada: "CA",
+  chile: "CL",
+  china: "CN",
+  colombia: "CO",
+  croatia: "HR",
+  cuba: "CU",
+  czechia: "CZ",
+  "czech republic": "CZ",
+  denmark: "DK",
+  ecuador: "EC",
+  egypt: "EG",
+  england: "GB",
+  estonia: "EE",
+  finland: "FI",
+  france: "FR",
+  germany: "DE",
+  greece: "GR",
+  hungary: "HU",
+  iceland: "IS",
+  india: "IN",
+  indonesia: "ID",
+  ireland: "IE",
+  israel: "IL",
+  italy: "IT",
+  japan: "JP",
+  malta: "MT",
+  mexico: "MX",
+  netherlands: "NL",
+  new_zealand: "NZ",
+  "new zealand": "NZ",
+  norway: "NO",
+  peru: "PE",
+  poland: "PL",
+  portugal: "PT",
+  romania: "RO",
+  russia: "RU",
+  "russian federation": "RU",
+  serbia: "RS",
+  slovakia: "SK",
+  slovenia: "SI",
+  spain: "ES",
+  sweden: "SE",
+  switzerland: "CH",
+  turkey: "TR",
+  uk: "GB",
+  ukraine: "UA",
+  "united kingdom": "GB",
+  "united states": "US",
+  usa: "US",
+  uruguay: "UY",
+  venezuela: "VE",
+  wales: "GB"
+};
 
 const elements = {
   appShell: document.getElementById("appShell"),
@@ -86,6 +146,22 @@ function normalizeBandSummary(item) {
     status: String(item?.status ?? "").trim(),
     profile_url: String(item?.profile_url ?? item?.profileUrl ?? "").trim()
   };
+}
+
+function countryToFlag(country) {
+  const normalizedCountry = String(country ?? "").trim().toLowerCase();
+  if (!normalizedCountry) {
+    return "";
+  }
+
+  const isoCode = COUNTRY_TO_ISO[normalizedCountry];
+  if (!isoCode) {
+    return "";
+  }
+
+  return [...isoCode.toUpperCase()]
+    .map((character) => String.fromCodePoint(127397 + character.charCodeAt(0)))
+    .join("");
 }
 
 function normalizeAlbumEntry(item) {
@@ -473,8 +549,9 @@ function renderResultsList() {
       button.classList.add("active");
     }
 
+    const flag = countryToFlag(band.country);
     button.innerHTML = `
-      <div class="resultTitle">${escapeHtml(band.name || "Unknown band")}</div>
+      <div class="resultTitle">${flag ? `${flag} ` : ""}${escapeHtml(band.name || "Unknown band")}</div>
       <div class="resultMeta">${escapeHtml(buildBandSummaryMeta(band))}</div>
     `;
     button.addEventListener("click", () => onBandSelected(band));
