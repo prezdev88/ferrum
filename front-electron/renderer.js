@@ -521,7 +521,7 @@ function renderBandDetail(detail) {
   const favoriteTitle = isFavoriteBand(detail.profile_url) ? "Remove favorite" : "Add favorite";
 
   elements.detailContent.innerHTML = `
-    <section class="heroCard">
+    <section class="heroCard bandHeroCard">
       <div id="bandHeroArtwork"></div>
       <div>
         <div class="heroTitle">${escapeHtml(detail.name || "Unknown band")}</div>
