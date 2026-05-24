@@ -19,6 +19,7 @@
         --accent: #4a90ff;
         --accent-soft: rgba(74, 144, 255, 0.18);
         --shadow: 0 30px 100px rgba(0, 0, 0, 0.55);
+        --favorite-logo-opacity: 0.12;
       }
 
       body.ferrum-light {
@@ -334,6 +335,7 @@
       }
 
       .resultRow {
+        position: relative;
         width: 100%;
         text-align: left;
         border-radius: 16px;
@@ -341,6 +343,7 @@
         background: rgba(255, 255, 255, 0.03);
         padding: 12px 13px;
         cursor: pointer;
+        overflow: hidden;
       }
 
       .resultRow:hover {
@@ -350,6 +353,41 @@
       .resultRow.active {
         border-color: rgba(74, 144, 255, 0.45);
         background: var(--accent-soft);
+      }
+
+      .favoriteResultLogo {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        object-position: right 10px center;
+        opacity: var(--favorite-logo-opacity);
+        filter: grayscale(1) brightness(1.65) contrast(1.1);
+        mix-blend-mode: screen;
+        pointer-events: none;
+      }
+
+      .imageOnlyFavoriteRow {
+        min-height: 92px;
+        background: #000000;
+      }
+
+      .imageOnlyFavoriteRow .favoriteResultLogo {
+        object-position: center;
+        background: #000000;
+        opacity: max(var(--favorite-logo-opacity), 0.18);
+        filter: none;
+        mix-blend-mode: normal;
+      }
+
+      .imageOnlyFavoriteRow .resultRowContent {
+        display: none;
+      }
+
+      .resultRowContent {
+        position: relative;
+        z-index: 1;
       }
 
       .resultTitle {
@@ -735,10 +773,38 @@
         font-weight: 700;
       }
 
+      .settingsLabelBlock {
+        display: grid;
+        gap: 4px;
+      }
+
       .settingsSubtle {
         color: var(--muted);
         font-size: 13px;
         line-height: 1.45;
+      }
+
+      .settingsInlineControl {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .settingsCheckbox {
+        width: 18px;
+        height: 18px;
+        accent-color: var(--accent);
+      }
+
+      .settingsSlider {
+        width: 180px;
+      }
+
+      .settingsValue {
+        min-width: 48px;
+        text-align: right;
+        color: var(--muted);
+        font-size: 13px;
       }
 
       .settingsColorList {
@@ -1073,6 +1139,23 @@
               <option value="youtube_music">YouTube Music</option>
               <option value="youtube">YouTube</option>
             </select>
+          </div>
+          <div class="settingsRow">
+            <div class="settingsLabelBlock">
+              <div class="settingsLabel">Favorite logo opacity</div>
+              <div class="settingsSubtle">Set to 0% if you do not want logos in favorite items.</div>
+            </div>
+            <div class="settingsInlineControl">
+              <input class="settingsSlider" id="favoriteLogoOpacityRange" type="range" min="0" max="100" step="1" />
+              <div class="settingsValue" id="favoriteLogoOpacityValue">0%</div>
+            </div>
+          </div>
+          <div class="settingsRow">
+            <div class="settingsLabelBlock">
+              <div class="settingsLabel">Favorites image only</div>
+              <div class="settingsSubtle">Show only the band logo/image in favorite items when available.</div>
+            </div>
+            <input class="settingsCheckbox" id="favoriteImageOnlyCheckbox" type="checkbox" />
           </div>
           <div>
             <div class="settingsTitle" style="font-size:18px;">Album type colors</div>

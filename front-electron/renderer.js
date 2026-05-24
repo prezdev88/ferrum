@@ -112,6 +112,9 @@ const elements = {
   settingsCloseButton: document.getElementById("settingsCloseButton"),
   themeSelect: document.getElementById("themeSelect"),
   providerSelect: document.getElementById("providerSelect"),
+  favoriteLogoOpacityRange: document.getElementById("favoriteLogoOpacityRange"),
+  favoriteLogoOpacityValue: document.getElementById("favoriteLogoOpacityValue"),
+  favoriteImageOnlyCheckbox: document.getElementById("favoriteImageOnlyCheckbox"),
   settingsColorList: document.getElementById("settingsColorList"),
   taskLoadingOverlay: document.getElementById("taskLoadingOverlay"),
   taskLoadingTitle: document.getElementById("taskLoadingTitle"),
@@ -136,9 +139,12 @@ const state = {
   settings: {
     themeMode: "black",
     musicProvider: "youtube_music",
+    favoriteLogoOpacity: 0,
+    favoriteImageOnly: false,
     albumTypeColors: {},
     favoriteBands: []
-  }
+  },
+  favoriteArtworkLoading: new Set()
 };
 
 elements.appVersion.textContent = `electron · ${globalThis.ferrum?.version ?? "unknown"}`;
@@ -149,7 +155,8 @@ function normalizeBandSummary(item) {
     country: String(item?.country ?? "").trim(),
     genre: String(item?.genre ?? "").trim(),
     status: String(item?.status ?? "").trim(),
-    profile_url: String(item?.profile_url ?? item?.profileUrl ?? "").trim()
+    profile_url: String(item?.profile_url ?? item?.profileUrl ?? "").trim(),
+    image_url: String(item?.image_url ?? item?.imageUrl ?? "").trim()
   };
 }
 
@@ -349,9 +356,31 @@ function persistSettings() {
   globalThis.ferrum.settings.save({
     themeMode: state.settings.themeMode,
     musicProvider: state.settings.musicProvider,
+    favoriteLogoOpacity: state.settings.favoriteLogoOpacity,
+    favoriteImageOnly: state.settings.favoriteImageOnly,
     albumTypeColors: state.settings.albumTypeColors,
     favoriteBands: state.settings.favoriteBands
   });
+}
+
+function clampFavoriteLogoOpacity(value) {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) {
+    return 0;
+  }
+  return Math.max(0, Math.min(100, Math.round(numericValue)));
+}
+
+function applyFavoriteLogoOpacity() {
+  const opacity = clampFavoriteLogoOpacity(state.settings.favoriteLogoOpacity);
+  state.settings.favoriteLogoOpacity = opacity;
+  document.documentElement.style.setProperty("--favorite-logo-opacity", String(opacity / 100));
+  if (elements.favoriteLogoOpacityRange) {
+    elements.favoriteLogoOpacityRange.value = String(opacity);
+  }
+  if (elements.favoriteLogoOpacityValue) {
+    elements.favoriteLogoOpacityValue.textContent = `${opacity}%`;
+  }
 }
 
 function ensureAlbumTypeColor(albumType, options = { persist: true }) {
@@ -530,6 +559,44 @@ function getVisibleResults() {
   return state.results;
 }
 
+async function hydrateFavoriteBandArtwork() {
+  if (state.resultsMode !== "favorites") {
+    return;
+  }
+
+  const missingArtworkFavorites = state.settings.favoriteBands.filter(
+    (band) => band.profile_url && !band.image_url && !state.favoriteArtworkLoading.has(band.profile_url)
+  );
+
+  for (const band of missingArtworkFavorites) {
+    state.favoriteArtworkLoading.add(band.profile_url);
+    try {
+      const detail = normalizeBandDetail(await globalThis.ferrum.api.getBand(band.profile_url));
+      if (!detail.image_url) {
+        continue;
+      }
+
+      const favoriteBand = state.settings.favoriteBands.find((item) => item.profile_url === band.profile_url);
+      if (!favoriteBand) {
+        continue;
+      }
+
+      favoriteBand.image_url = detail.image_url;
+      globalThis.ferrum.settings.save({
+        ...state.settings,
+        favoriteBands: state.settings.favoriteBands
+      });
+
+      if (state.resultsMode === "favorites") {
+        renderResultsList();
+      }
+    } catch {
+    } finally {
+      state.favoriteArtworkLoading.delete(band.profile_url);
+    }
+  }
+}
+
 function renderResultsList() {
   const items = getVisibleResults();
   const previousScrollTop = state.resultsScrollTop[state.resultsMode] ?? 0;
@@ -554,11 +621,20 @@ function renderResultsList() {
     if (state.selectedBandSummary?.profile_url === band.profile_url) {
       button.classList.add("active");
     }
+    if (state.resultsMode === "favorites" && band.image_url) {
+      button.classList.add("favoriteResultRow");
+      if (state.settings.favoriteImageOnly) {
+        button.classList.add("imageOnlyFavoriteRow");
+      }
+    }
 
     const flag = countryToFlag(band.country);
     button.innerHTML = `
-      <div class="resultTitle">${flag ? `${flag} ` : ""}${escapeHtml(band.name || "Unknown band")}</div>
-      <div class="resultMeta">${escapeHtml(buildBandSummaryMeta(band))}</div>
+      ${state.resultsMode === "favorites" && band.image_url ? `<img class="favoriteResultLogo" src="${escapeHtml(band.image_url)}" alt="" loading="lazy" referrerpolicy="no-referrer" />` : ""}
+      <div class="resultRowContent">
+        <div class="resultTitle">${flag ? `${flag} ` : ""}${escapeHtml(band.name || "Unknown band")}</div>
+        <div class="resultMeta">${escapeHtml(buildBandSummaryMeta(band))}</div>
+      </div>
     `;
     button.addEventListener("click", () => onBandSelected(band));
     item.appendChild(button);
@@ -570,6 +646,27 @@ function renderResultsList() {
   elements.resultsBody.scrollTop = previousScrollTop;
   requestAnimationFrame(() => {
     elements.resultsBody.scrollTop = previousScrollTop;
+  });
+
+  if (state.resultsMode === "favorites") {
+    void hydrateFavoriteBandArtwork();
+  }
+}
+
+function persistFavoriteBandArtwork(detail) {
+  if (!detail?.profile_url || !detail?.image_url) {
+    return;
+  }
+
+  const favoriteBand = state.settings.favoriteBands.find((item) => item.profile_url === detail.profile_url);
+  if (!favoriteBand || favoriteBand.image_url === detail.image_url) {
+    return;
+  }
+
+  favoriteBand.image_url = detail.image_url;
+  globalThis.ferrum.settings.save({
+    ...state.settings,
+    favoriteBands: state.settings.favoriteBands
   });
 }
 
@@ -608,6 +705,7 @@ function renderBandDetail(detail) {
     ensureAlbumTypeColor(album.type);
   }
   state.selectedBandDetail = detail;
+  persistFavoriteBandArtwork(detail);
   showDetailContent();
 
   const countryFlag = countryToFlag(detail.country);
@@ -788,7 +886,8 @@ function toggleFavorite(detail) {
       country: detail.country || "",
       genre: detail.genre || "",
       status: detail.status || "",
-      profile_url: detail.profile_url
+      profile_url: detail.profile_url,
+      image_url: detail.image_url || ""
     });
   }
 
@@ -1059,6 +1158,10 @@ function renderSettingsColorRows() {
 function openSettingsModal() {
   elements.themeSelect.value = THEME_MODES.includes(state.settings.themeMode) ? state.settings.themeMode : "black";
   elements.providerSelect.value = state.settings.musicProvider || "youtube_music";
+  applyFavoriteLogoOpacity();
+  if (elements.favoriteImageOnlyCheckbox) {
+    elements.favoriteImageOnlyCheckbox.checked = Boolean(state.settings.favoriteImageOnly);
+  }
   renderSettingsColorRows();
   elements.settingsModal.classList.remove("hidden");
 }
@@ -1112,12 +1215,15 @@ async function bootstrap() {
   state.settings = {
     themeMode: settings?.themeMode ?? settings?.theme_mode ?? "black",
     musicProvider: settings?.musicProvider ?? settings?.music_provider ?? "youtube_music",
+    favoriteLogoOpacity: clampFavoriteLogoOpacity(settings?.favoriteLogoOpacity ?? settings?.favorite_logo_opacity ?? 0),
+    favoriteImageOnly: Boolean(settings?.favoriteImageOnly ?? settings?.favorite_image_only ?? false),
     albumTypeColors: settings?.albumTypeColors ?? settings?.album_type_colors ?? {},
     favoriteBands: Array.isArray(settings?.favoriteBands ?? settings?.favorite_bands)
       ? (settings?.favoriteBands ?? settings?.favorite_bands).map(normalizeBandSummary)
       : []
   };
   applyTheme();
+  applyFavoriteLogoOpacity();
   setText(elements.backendUrl, `url: ${config.backendUrl}`);
   renderResultsList();
 }
@@ -1221,6 +1327,25 @@ elements.themeSelect.addEventListener("change", () => {
 elements.providerSelect.addEventListener("change", () => {
   state.settings.musicProvider = elements.providerSelect.value;
   persistSettings();
+});
+
+elements.favoriteLogoOpacityRange?.addEventListener("input", () => {
+  state.settings.favoriteLogoOpacity = clampFavoriteLogoOpacity(elements.favoriteLogoOpacityRange.value);
+  applyFavoriteLogoOpacity();
+});
+
+elements.favoriteLogoOpacityRange?.addEventListener("change", () => {
+  state.settings.favoriteLogoOpacity = clampFavoriteLogoOpacity(elements.favoriteLogoOpacityRange.value);
+  applyFavoriteLogoOpacity();
+  persistSettings();
+});
+
+elements.favoriteImageOnlyCheckbox?.addEventListener("change", () => {
+  state.settings.favoriteImageOnly = elements.favoriteImageOnlyCheckbox.checked;
+  persistSettings();
+  if (state.resultsMode === "favorites") {
+    renderResultsList();
+  }
 });
 
 window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {

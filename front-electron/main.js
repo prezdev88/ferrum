@@ -60,6 +60,10 @@ function loadSettings() {
   return {
     themeMode: typeof payload.theme_mode === "string" ? payload.theme_mode : "black",
     musicProvider: typeof payload.music_provider === "string" ? payload.music_provider : "youtube_music",
+    favoriteLogoOpacity: Number.isFinite(Number(payload.favorite_logo_opacity))
+      ? Math.max(0, Math.min(100, Math.round(Number(payload.favorite_logo_opacity))))
+      : 0,
+    favoriteImageOnly: Boolean(payload.favorite_image_only),
     albumTypeColors,
     favoriteBands: loadFavorites()
   };
@@ -84,6 +88,10 @@ function saveSettings(settings) {
   writeJsonFile(getPreferencesPath(), {
     theme_mode: nextSettings.themeMode || "black",
     music_provider: nextSettings.musicProvider || "youtube_music",
+    favorite_logo_opacity: Number.isFinite(Number(nextSettings.favoriteLogoOpacity))
+      ? Math.max(0, Math.min(100, Math.round(Number(nextSettings.favoriteLogoOpacity))))
+      : 0,
+    favorite_image_only: Boolean(nextSettings.favoriteImageOnly),
     album_type_colors: Object.fromEntries(
       Object.entries(albumTypeColors).sort((a, b) => a[0].localeCompare(b[0], undefined, { sensitivity: "base" }))
     )
@@ -109,7 +117,8 @@ function loadFavorites() {
       country: String(item.country ?? "").trim(),
       genre: String(item.genre ?? "").trim(),
       status: String(item.status ?? "").trim(),
-      profile_url: String(item.profile_url ?? "").trim()
+      profile_url: String(item.profile_url ?? "").trim(),
+      image_url: String(item.image_url ?? item.imageUrl ?? "").trim()
     }))
     .filter((item) => item.profile_url);
 }
@@ -123,7 +132,8 @@ function saveFavorites(favoriteBands) {
           country: String(item.country ?? "").trim(),
           genre: String(item.genre ?? "").trim(),
           status: String(item.status ?? "").trim(),
-          profile_url: String(item.profile_url ?? "").trim()
+          profile_url: String(item.profile_url ?? "").trim(),
+          image_url: String(item.image_url ?? item.imageUrl ?? "").trim()
         }))
         .filter((item) => item.profile_url)
     : [];
