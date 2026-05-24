@@ -1,4 +1,5 @@
 back/target
 __pycache__/
 *.pyc
-.vscode
+.vscodenode_modules
+node_modules

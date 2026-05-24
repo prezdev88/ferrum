@@ -1,0 +1,38 @@
+{
+  "types": [
+    {
+      "type": "feat",
+      "section": "Features"
+    },
+    {
+      "type": "fix",
+      "section": "Bug Fixes"
+    },
+    {
+      "type": "refactor",
+      "section": "Refactor"
+    },
+    {
+      "type": "style",
+      "section": "Style"
+    },
+    {
+      "type": "test",
+      "section": "Tests"
+    },
+    {
+      "type": "chore",
+      "hidden": true
+    },
+    {
+      "type": "docs",
+      "hidden": true
+    },
+    {
+      "type": "perf",
+      "hidden": true
+    }
+  ],
+  "commitUrlFormat": "https://github.com/prezdev88/ferrum/commit/{{hash}}",
+  "compareUrlFormat": "https://github.com/prezdev88/ferrum/compare/{{previousTag}}...{{currentTag}}"
+}
