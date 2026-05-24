@@ -1,7 +1,7 @@
 # Ferrum 🤘
 
-**Ferrum** is a Linux-native desktop app to explore **Metal Archives** with a clean split between:
-- 🖥️ GTK frontend (`PyGObject` + `libadwaita`)
+**Ferrum** is a desktop app to explore **Metal Archives** with a clean split between:
+- 🖥️ Electron frontend
 - ⚙️ Spring Boot backend API
 
 Built for fast discovery: search bands, inspect discographies, open album modals, and personalize your flow with favorites, themes, and provider-aware actions.
@@ -22,7 +22,7 @@ Built for fast discovery: search bands, inspect discographies, open album modals
 ## 🧱 Architecture
 
 ```text
-GTK Frontend (front/)
+Electron Frontend (front-electron/)
   -> consumes HTTP API
 Spring Boot Backend (back/)
   -> exposes HTTP API
@@ -34,20 +34,20 @@ Spring Boot Backend (back/)
 From repository root:
 
 ```bash
-./run.sh
+./run-electron.sh
 ```
 
 Startup flow:
-1. `front/run.sh` checks for a backend JAR in `back/target`.
-2. If missing, it builds backend with Maven.
+1. Checks for a backend JAR in `back/target`.
+2. If missing, builds backend with Maven.
 3. Backend starts at `http://localhost:18080` (default).
-4. GTK app launches and consumes the local backend.
+4. Electron app launches and consumes the local backend.
 
 ## 📁 Repository Layout
 
-- `front/`: GTK app (UI, themes, settings, favorites UX)
+- `front-electron/`: Electron app (UI, themes, settings, favorites UX)
 - `back/`: Spring Boot backend + endpoints
-- `run.sh`: root launcher (delegates to `front/run.sh`)
+- `run-electron.sh`: Launcher script (builds & starts backend, launches Electron)
 
 ## 💾 Local User Data
 
