@@ -157,6 +157,11 @@ function resolveBackendConfig() {
 }
 
 function findBackendJar() {
+  const explicitJarPath = String(process.env.FERRUM_BACKEND_JAR ?? "").trim();
+  if (explicitJarPath) {
+    return explicitJarPath;
+  }
+
   const repoRoot = path.join(__dirname, "..");
   const targetDir = path.join(repoRoot, "back", "target");
   let entries = [];
