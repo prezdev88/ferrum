@@ -1,0 +1,1002 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ferrum</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #060709;
+        --bg-soft: #0b0d10;
+        --panel: #101318;
+        --panel-soft: #161a20;
+        --panel-elevated: #1b2028;
+        --text: #f2f3f5;
+        --muted: #9ea4ad;
+        --line: rgba(255, 255, 255, 0.08);
+        --line-strong: rgba(255, 255, 255, 0.14);
+        --accent: #4a90ff;
+        --accent-soft: rgba(74, 144, 255, 0.18);
+        --shadow: 0 30px 100px rgba(0, 0, 0, 0.55);
+      }
+
+      body.ferrum-light {
+        color-scheme: light;
+        --bg: #f3f0eb;
+        --bg-soft: #ece4dc;
+        --panel: #ffffff;
+        --panel-soft: #e8e1da;
+        --panel-elevated: #ffffff;
+        --text: #241f31;
+        --muted: rgba(36, 31, 49, 0.72);
+        --line: rgba(123, 97, 74, 0.12);
+        --line-strong: rgba(123, 97, 74, 0.18);
+        --accent: #8f3d33;
+        --accent-soft: rgba(143, 61, 51, 0.1);
+        --shadow: 0 10px 28px rgba(32, 24, 18, 0.08);
+      }
+
+      body.ferrum-dark {
+        color-scheme: dark;
+        --bg: #171414;
+        --bg-soft: #1c1919;
+        --panel: #1c1919;
+        --panel-soft: #2b2626;
+        --panel-elevated: #221f1f;
+        --text: #f4efea;
+        --muted: rgba(244, 239, 234, 0.68);
+        --line: rgba(193, 152, 126, 0.14);
+        --line-strong: rgba(193, 152, 126, 0.2);
+        --accent: #d08871;
+        --accent-soft: rgba(208, 136, 113, 0.14);
+        --shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+      }
+
+      body.ferrum-black {
+        color-scheme: dark;
+        --bg: #000000;
+        --bg-soft: #0a0a0a;
+        --panel: #0a0a0a;
+        --panel-soft: #111111;
+        --panel-elevated: #0d0d0d;
+        --text: #f5f5f5;
+        --muted: rgba(245, 245, 245, 0.62);
+        --line: rgba(255, 255, 255, 0.08);
+        --line-strong: rgba(255, 255, 255, 0.14);
+        --accent: #f2f2f2;
+        --accent-soft: rgba(255, 255, 255, 0.08);
+        --shadow: 0 14px 36px rgba(0, 0, 0, 0.4);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          "Segoe UI Variable",
+          "SF Pro Display",
+          "Noto Sans",
+          sans-serif;
+      }
+
+      button,
+      input,
+      select,
+      option,
+      optgroup {
+        font: inherit;
+      }
+
+      button {
+        color: inherit;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      .app {
+        height: 100vh;
+        display: grid;
+        grid-template-rows: auto 1fr;
+        gap: 14px;
+        padding: 0 6px 6px;
+      }
+
+      .surface {
+        border: 1px solid var(--line);
+        background: var(--panel);
+        box-shadow: var(--shadow);
+      }
+
+      .button {
+        height: 32px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.05);
+        padding: 0 14px;
+        cursor: pointer;
+      }
+
+      .button:hover {
+        border-color: var(--line-strong);
+      }
+
+      .button.primary {
+        background: linear-gradient(180deg, #5ca2ff, #3b82f6);
+        border-color: rgba(255, 255, 255, 0.12);
+        font-weight: 700;
+      }
+
+      .menuWrap {
+        position: relative;
+      }
+
+      .iconButton {
+        width: 32px;
+        min-width: 32px;
+        padding: 0;
+        display: inline-grid;
+        place-items: center;
+      }
+
+      .iconButton svg {
+        width: 18px;
+        height: 18px;
+        fill: currentColor;
+      }
+
+      .dropdownMenu {
+        position: absolute;
+        top: calc(100% + 8px);
+        left: 0;
+        min-width: 220px;
+        border-radius: 16px;
+        border: 1px solid var(--line);
+        background: var(--panel);
+        box-shadow: var(--shadow);
+        padding: 8px;
+        display: grid;
+        gap: 4px;
+        z-index: 40;
+      }
+
+      .dropdownItem {
+        width: 100%;
+        text-align: left;
+        border-radius: 12px;
+        border: 1px solid transparent;
+        background: transparent;
+        color: var(--text);
+        padding: 10px 12px;
+        cursor: pointer;
+      }
+
+      .dropdownItem:hover {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: var(--line);
+      }
+
+      .dropdownDivider {
+        height: 1px;
+        background: var(--line);
+        margin: 4px 0;
+      }
+
+      .button:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+
+      .searchSurface {
+        border-radius: 22px;
+        margin: 0 2px;
+        padding: 12px;
+      }
+
+      .searchForm {
+        display: grid;
+        grid-template-columns: auto 1fr auto auto;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .searchInput,
+      .searchSelect {
+        height: 32px;
+        border-radius: 999px;
+        border: 1px solid var(--line-strong);
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text);
+        padding: 0 14px;
+        outline: none;
+      }
+
+      .searchSelect,
+      .searchSelect option,
+      .searchSelect optgroup {
+        background: var(--panel);
+        color: var(--text);
+      }
+
+      body.ferrum-light .searchSelect,
+      body.ferrum-light .searchSelect option,
+      body.ferrum-light .searchSelect optgroup {
+        background: #ffffff;
+        color: #241f31;
+      }
+
+      body.ferrum-dark .searchSelect,
+      body.ferrum-dark .searchSelect option,
+      body.ferrum-dark .searchSelect optgroup {
+        background: #221f1f;
+        color: #f4efea;
+      }
+
+      body.ferrum-black .searchSelect,
+      body.ferrum-black .searchSelect option,
+      body.ferrum-black .searchSelect optgroup {
+        background: #0d0d0d;
+        color: #f5f5f5;
+      }
+
+      .searchInput::placeholder {
+        color: var(--muted);
+      }
+
+      .content {
+        min-height: 0;
+        display: grid;
+        grid-template-columns: 338px 1fr;
+        gap: 10px;
+      }
+
+      .resultsPanel,
+      .detailPanel {
+        min-height: 0;
+        border-radius: 20px;
+      }
+
+      .resultsPanel {
+        display: grid;
+        grid-template-rows: auto 1fr;
+        overflow: hidden;
+      }
+
+      .resultsHeader {
+        padding: 14px 14px 10px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        border-bottom: 1px solid var(--line);
+        flex-wrap: nowrap;
+      }
+
+      .resultsTitle {
+        font-size: 16px;
+        font-weight: 800;
+      }
+
+      .resultsCount {
+        font-size: 12px;
+        color: var(--muted);
+        line-height: 1.2;
+      }
+
+      .spacer {
+        flex: 1;
+      }
+
+      .tabButton {
+        height: 30px;
+        min-width: 128px;
+        border-radius: 999px;
+        border: 1px solid transparent;
+        background: transparent;
+        color: var(--muted);
+        padding: 0 12px;
+        cursor: pointer;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+
+      .tabButton.active {
+        border-color: var(--line);
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text);
+        font-weight: 700;
+      }
+
+      .resultsBody {
+        position: relative;
+        min-height: 0;
+        padding: 12px;
+        overflow: auto;
+      }
+
+      .resultsList {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        gap: 8px;
+      }
+
+      .resultRow {
+        width: 100%;
+        text-align: left;
+        border-radius: 16px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.03);
+        padding: 12px 13px;
+        cursor: pointer;
+      }
+
+      .resultRow:hover {
+        border-color: var(--line-strong);
+      }
+
+      .resultRow.active {
+        border-color: rgba(74, 144, 255, 0.45);
+        background: var(--accent-soft);
+      }
+
+      .resultTitle {
+        font-size: 14px;
+        font-weight: 800;
+      }
+
+      .resultMeta {
+        margin-top: 5px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.35;
+      }
+
+      .statusCard {
+        position: absolute;
+        inset: 12px;
+        display: grid;
+        place-items: center;
+        text-align: center;
+        padding: 18px;
+      }
+
+      .statusTitle {
+        font-size: 28px;
+        font-weight: 900;
+        line-height: 1.08;
+      }
+
+      .statusDescription {
+        margin-top: 10px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .detailPanel {
+        overflow: hidden;
+        position: relative;
+      }
+
+      .detailScroll {
+        height: 100%;
+        overflow: auto;
+        padding: 18px;
+      }
+
+      .heroCard,
+      .metaGrid,
+      .sectionCard {
+        border-radius: 20px;
+        border: 1px solid var(--line);
+        background: var(--panel-elevated);
+      }
+
+      .heroCard {
+        display: grid;
+        grid-template-columns: 296px 1fr;
+        gap: 18px;
+        padding: 18px;
+      }
+
+      .artwork {
+        width: 100%;
+        height: 184px;
+        border-radius: 18px;
+        border: 1px solid var(--line);
+        background: var(--panel-soft);
+        object-fit: contain;
+        object-position: center;
+        padding: 8px;
+      }
+
+      .artworkSquare {
+        width: 220px;
+        height: 220px;
+        justify-self: start;
+      }
+
+      .heroTitle {
+        font-size: 32px;
+        font-weight: 900;
+        line-height: 1.05;
+      }
+
+      .chips {
+        margin-top: 12px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .chip {
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.03);
+        padding: 6px 10px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .albumTypeBadge {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        border: 1px solid transparent;
+        padding: 4px 10px;
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1;
+      }
+
+      .heroActions {
+        margin-top: 14px;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .starButton {
+        min-width: 44px;
+        padding: 0 12px;
+      }
+
+      .metaGrid {
+        margin-top: 16px;
+        padding: 18px;
+        display: grid;
+        grid-template-columns: 150px 1fr;
+        gap: 10px 18px;
+      }
+
+      .metaKey {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+        text-transform: uppercase;
+      }
+
+      .metaValue {
+        font-size: 14px;
+        line-height: 1.45;
+      }
+
+      .sectionCard {
+        margin-top: 16px;
+        padding: 16px;
+      }
+
+      .sectionHeader {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .sectionTitle {
+        font-size: 22px;
+        font-weight: 900;
+      }
+
+      .discographyFilter {
+        margin-left: auto;
+      }
+
+      .albumList {
+        display: grid;
+        gap: 8px;
+      }
+
+      .albumRow {
+        width: 100%;
+        text-align: left;
+        display: grid;
+        grid-template-columns: 64px 1fr auto;
+        gap: 12px;
+        align-items: center;
+        padding: 12px;
+        border-radius: 16px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.03);
+        cursor: pointer;
+      }
+
+      .albumRow:hover {
+        border-color: var(--line-strong);
+      }
+
+      .albumRow[disabled] {
+        cursor: default;
+        opacity: 0.72;
+      }
+
+      .albumArtwork {
+        width: 64px;
+        height: 64px;
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        background: var(--panel-soft);
+        object-fit: cover;
+      }
+
+      .albumTitle {
+        font-size: 14px;
+        font-weight: 800;
+      }
+
+      .albumMeta {
+        margin-top: 4px;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .albumType {
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        padding: 3px 8px;
+      }
+
+      .arrow {
+        color: var(--muted);
+        font-size: 18px;
+      }
+
+      .modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(2, 4, 8, 0.72);
+        backdrop-filter: blur(10px);
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+
+      .modalCard {
+        width: min(860px, 100%);
+        max-height: min(720px, calc(100vh - 48px));
+        overflow: auto;
+        border-radius: 24px;
+        padding: 20px;
+      }
+
+      .modalHeader {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+
+      .modalTitle {
+        font-size: 24px;
+        font-weight: 900;
+      }
+
+      .modalClose {
+        margin-left: auto;
+      }
+
+      .trackList {
+        display: grid;
+        gap: 8px;
+      }
+
+      .settingsCard {
+        width: min(720px, 100%);
+        max-height: min(560px, calc(100vh - 48px));
+      }
+
+      .settingsContent {
+        display: grid;
+        gap: 18px;
+      }
+
+      .settingsTitle {
+        font-size: 22px;
+        font-weight: 900;
+      }
+
+      .settingsRow {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 16px;
+        align-items: center;
+        padding: 14px 16px;
+        border-radius: 16px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      .settingsLabel {
+        font-weight: 700;
+      }
+
+      .settingsSubtle {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .settingsColorList {
+        min-height: 280px;
+        max-height: 280px;
+        overflow: auto;
+        display: grid;
+        gap: 12px;
+      }
+
+      .settingsColorRow {
+        display: grid;
+        grid-template-columns: 1fr auto auto auto auto;
+        gap: 12px;
+        align-items: center;
+        padding: 14px 16px;
+        border-radius: 16px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      .settingsColorInput {
+        width: 96px;
+      }
+
+      .settingsEmpty {
+        padding: 14px 0;
+        color: var(--muted);
+        line-height: 1.45;
+      }
+
+      .trackRow {
+        display: grid;
+        grid-template-columns: auto 1fr auto auto;
+        gap: 10px;
+        align-items: center;
+        padding: 10px 12px;
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      .trackMeta {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .loadingOverlay {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: var(--bg);
+      }
+
+      .loadingCard {
+        width: min(720px, 100%);
+        border-radius: 22px;
+        padding: 22px;
+      }
+
+      .taskLoadingOverlay {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: rgba(2, 4, 8, 0.42);
+        backdrop-filter: blur(6px);
+        z-index: 60;
+      }
+
+      .taskLoadingCard {
+        width: 360px;
+        min-height: 180px;
+        border-radius: 22px;
+        padding: 24px;
+        display: grid;
+        place-items: center;
+        text-align: center;
+      }
+
+      .taskLoadingInner {
+        display: grid;
+        gap: 16px;
+        justify-items: center;
+      }
+
+      .spinner {
+        width: 36px;
+        height: 36px;
+        border-radius: 999px;
+        border: 3px solid rgba(255, 255, 255, 0.14);
+        border-top-color: var(--accent);
+        animation: spin 0.8s linear infinite;
+      }
+
+      .taskLoadingTitle {
+        font-size: 22px;
+        font-weight: 900;
+      }
+
+      .taskLoadingMessage {
+        color: var(--muted);
+        line-height: 1.45;
+      }
+
+      .loadingTitle {
+        font-size: 22px;
+        font-weight: 900;
+      }
+
+      .loadingSubtitle {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .loadingStatus {
+        margin-top: 12px;
+        color: var(--muted);
+        line-height: 1.45;
+      }
+
+      .loadingMeta {
+        margin-top: 12px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .miniPill {
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.03);
+        padding: 5px 10px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .loadingBar {
+        margin-top: 16px;
+        height: 8px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid var(--line);
+        overflow: hidden;
+      }
+
+      .loadingBar > div {
+        width: 35%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, var(--accent), transparent);
+        animation: slide 1.1s linear infinite;
+      }
+
+      @keyframes slide {
+        from {
+          transform: translateX(-60%);
+        }
+        to {
+          transform: translateX(260%);
+        }
+      }
+
+      @keyframes spin {
+        from {
+          transform: rotate(0deg);
+        }
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      @media (max-width: 1080px) {
+        .content {
+          grid-template-columns: 1fr;
+        }
+
+        .heroCard {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app hidden" id="appShell">
+      <section class="surface searchSurface">
+        <form class="searchForm" id="searchForm" autocomplete="off">
+          <div class="menuWrap">
+            <button class="button iconButton" id="menuButton" type="button" aria-label="Menu" aria-expanded="false">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 7h16v2H4V7zm0 4h16v2H4v-2zm0 4h16v2H4v-2z"></path>
+              </svg>
+            </button>
+            <div class="dropdownMenu hidden" id="appMenu">
+              <button class="dropdownItem" id="menuSettingsButton" type="button">Settings</button>
+              <button class="dropdownItem" id="menuHistoryButton" type="button">View search history</button>
+              <div class="dropdownDivider"></div>
+              <button class="dropdownItem" id="menuQuitButton" type="button">Quit</button>
+            </div>
+          </div>
+          <input
+            class="searchInput"
+            id="query"
+            name="query"
+            placeholder="Try: Bathory, funeral doom, Chile, cosmic themes..."
+            spellcheck="false"
+          />
+          <select class="searchSelect" id="searchType" name="searchType" title="Search type">
+            <option value="BAND_NAME">Band name</option>
+            <option value="MUSIC_GENRE">Music genre</option>
+            <option value="THEMES">Themes</option>
+            <option value="ALBUM_TITLE">Album title</option>
+            <option value="SONG_TITLE">Song title</option>
+            <option value="LABEL">Label</option>
+            <option value="ARTIST">Artist</option>
+            <option value="USER_PROFILE">User profile</option>
+            <option value="GOOGLE">Google</option>
+          </select>
+          <button class="button primary" id="searchButton" type="submit" disabled>Search</button>
+        </form>
+      </section>
+
+      <main class="content">
+        <aside class="surface resultsPanel">
+          <div class="resultsHeader">
+            <div class="resultsTitle" id="resultsHeading">Results</div>
+            <div class="resultsCount" id="resultsCount">No results yet</div>
+            <div class="spacer"></div>
+            <button class="tabButton" id="favoritesToggle" type="button">Favorites</button>
+          </div>
+          <div class="resultsBody">
+            <ul class="resultsList hidden" id="resultsList"></ul>
+            <div class="statusCard" id="resultsEmpty">
+              <div>
+                <div class="statusTitle" id="resultsEmptyTitle">Start with a band, genre or theme</div>
+                <div class="statusDescription" id="resultsEmptyDescription">
+                  Search results will appear here and load band details on selection.
+                </div>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <section class="surface detailPanel">
+          <div class="detailScroll" id="detailScroll">
+            <div class="statusCard" id="detailEmpty">
+              <div>
+                <div class="statusTitle">Band details live here</div>
+                <div class="statusDescription">
+                  Pick a result to inspect line-up context, metadata and discography.
+                </div>
+              </div>
+            </div>
+            <div class="hidden" id="detailContent"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="loadingOverlay" id="loadingOverlay">
+      <div class="surface loadingCard">
+        <div style="display:flex; align-items:baseline; justify-content:space-between; gap:12px;">
+          <div>
+            <div class="loadingTitle">Ferrum</div>
+            <div class="loadingSubtitle">Electron frontend bootstrap</div>
+          </div>
+          <div class="loadingSubtitle" id="appVersion"></div>
+        </div>
+        <div class="loadingStatus" id="statusLine">Starting...</div>
+        <div class="loadingMeta">
+          <div class="miniPill" id="backendState">backend: unknown</div>
+          <div class="miniPill" id="backendUrl">url: -</div>
+        </div>
+        <div class="loadingBar" id="loadingBar" aria-hidden="true"><div></div></div>
+      </div>
+    </div>
+
+    <div class="modal hidden" id="historyModal">
+      <div class="surface modalCard">
+        <div class="modalHeader">
+          <div class="modalTitle">Search history</div>
+          <button class="button modalClose" id="historyCloseButton" type="button">Close</button>
+        </div>
+        <div class="resultsCount" style="margin-bottom:12px;">Recent searches</div>
+        <ul class="resultsList" id="historyList"></ul>
+      </div>
+    </div>
+
+    <div class="modal hidden" id="albumModal">
+      <div class="surface modalCard">
+        <div class="modalHeader">
+          <div>
+            <div class="modalTitle" id="albumModalTitle">Album</div>
+            <div class="resultsCount" id="albumModalSubtitle"></div>
+          </div>
+          <button class="button modalClose" id="albumCloseButton" type="button">Close</button>
+        </div>
+        <div id="albumModalBody"></div>
+      </div>
+    </div>
+
+    <div class="modal hidden" id="settingsModal">
+      <div class="surface modalCard settingsCard">
+        <div class="modalHeader">
+          <div>
+            <div class="modalTitle">Settings</div>
+            <div class="resultsCount">Preferences</div>
+          </div>
+          <button class="button modalClose" id="settingsCloseButton" type="button">Close</button>
+        </div>
+        <div class="settingsContent">
+          <div class="settingsRow">
+            <div class="settingsLabel">Theme</div>
+            <select class="searchSelect" id="themeSelect">
+              <option value="system">System</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+              <option value="black">Black</option>
+            </select>
+          </div>
+          <div class="settingsRow">
+            <div class="settingsLabel">Music provider</div>
+            <select class="searchSelect" id="providerSelect">
+              <option value="youtube_music">YouTube Music</option>
+              <option value="youtube">YouTube</option>
+            </select>
+          </div>
+          <div>
+            <div class="settingsTitle" style="font-size:18px;">Album type colors</div>
+            <div class="settingsSubtle" style="margin-top:8px;">
+              Colors are created automatically the first time a release type appears.
+            </div>
+          </div>
+          <div class="settingsColorList" id="settingsColorList"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="taskLoadingOverlay hidden" id="taskLoadingOverlay">
+      <div class="surface taskLoadingCard">
+        <div class="taskLoadingInner">
+          <div class="spinner" aria-hidden="true"></div>
+          <div class="taskLoadingTitle" id="taskLoadingTitle">Loading</div>
+          <div class="taskLoadingMessage" id="taskLoadingMessage">Please wait...</div>
+        </div>
+      </div>
+    </div>
+
+    <script src="./renderer.js"></script>
+  </body>
+</html>
