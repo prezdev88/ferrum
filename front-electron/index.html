@@ -617,6 +617,31 @@
         overflow: hidden;
       }
 
+      .discographyWorkspace {
+        min-height: 0;
+        display: grid;
+        grid-template-columns: minmax(320px, 1.15fr) minmax(340px, 0.9fr);
+        gap: 16px;
+      }
+
+      .albumShelf,
+      .albumInspector {
+        min-height: 0;
+        border-radius: 18px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      .albumShelf {
+        padding: 12px;
+        overflow: auto;
+      }
+
+      .albumInspector {
+        overflow: auto;
+        padding: 14px;
+      }
+
       .sectionHeader {
         display: flex;
         align-items: center;
@@ -639,30 +664,27 @@
 
       .albumList {
         display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
         align-content: start;
-        gap: 8px;
+        gap: 12px;
         min-height: 0;
-        overflow: auto;
         padding-right: 4px;
-      }
-
-      .albumEntry {
-        display: grid;
-        gap: 8px;
       }
 
       .albumRow {
         width: 100%;
         text-align: left;
         display: grid;
-        grid-template-columns: 96px 1fr auto;
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto;
         gap: 12px;
-        align-items: center;
-        padding: 12px;
-        border-radius: 16px;
+        align-items: start;
+        padding: 13px;
+        border-radius: 18px;
         border: 1px solid var(--line);
         background: rgba(255, 255, 255, 0.03);
         cursor: pointer;
+        min-height: 100%;
       }
 
       .albumRow:hover {
@@ -679,31 +701,29 @@
         opacity: 0.72;
       }
 
-      .albumArtwork {
-        width: 64px;
-        height: 64px;
-        border-radius: 14px;
-        border: 1px solid var(--line);
-        background: var(--panel-soft);
-        object-fit: cover;
-      }
-
       .albumArtworkJewelcase {
-        justify-self: start;
+        justify-self: center;
+        width: 100%;
       }
 
       .albumTitle {
-        font-size: 14px;
+        font-size: 15px;
         font-weight: 800;
+        line-height: 1.25;
       }
 
       .albumMeta {
-        margin-top: 4px;
         display: flex;
         gap: 8px;
         flex-wrap: wrap;
         color: var(--muted);
         font-size: 12px;
+      }
+
+      .albumBody {
+        min-width: 0;
+        display: grid;
+        gap: 6px;
       }
 
       .albumType {
@@ -713,25 +733,60 @@
       }
 
       .arrow {
-        color: var(--muted);
-        font-size: 18px;
-        transition: transform 160ms ease;
+        display: none;
       }
 
       .albumRow.isExpanded .arrow {
-        transform: rotate(90deg);
+        display: none;
       }
 
-      .albumExpandedPanel {
-        margin-top: 0;
-        padding: 18px;
+      .albumInspectorPanel {
         display: grid;
         gap: 16px;
       }
 
-      .albumExpandedHero {
-        grid-template-columns: 244px 1fr;
+      .albumInspectorHero {
+        grid-template-columns: minmax(190px, 230px) minmax(0, 1fr);
         align-items: center;
+      }
+
+      .albumInspectorHero > div:last-child {
+        min-width: 0;
+      }
+
+      .albumInspectorHero .albumArtworkJewelcase {
+        max-width: 100%;
+        justify-self: start;
+      }
+
+      .albumInspectorHero .heroTitle {
+        word-break: break-word;
+      }
+
+      .albumInspectorHero .heroActions {
+        row-gap: 10px;
+      }
+
+      .albumInspectorState {
+        min-height: 100%;
+        display: grid;
+        place-items: center;
+        text-align: center;
+        padding: 24px;
+      }
+
+      .albumInspectorState .sectionTitle {
+        font-size: 24px;
+      }
+
+      .albumInspectorState .resultMeta {
+        margin-top: 10px;
+      }
+
+      .albumInspectorTitle {
+        font-size: 18px;
+        font-weight: 900;
+        margin-bottom: 12px;
       }
 
       .modal {
@@ -1020,6 +1075,14 @@
         }
 
         .bandHeroCard {
+          grid-template-columns: 1fr;
+        }
+
+        .discographyWorkspace {
+          grid-template-columns: 1fr;
+        }
+
+        .albumInspectorHero {
           grid-template-columns: 1fr;
         }
       }

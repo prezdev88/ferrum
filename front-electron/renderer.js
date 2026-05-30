@@ -722,10 +722,10 @@ function createCompactDiscNode(size) {
   `;
 
   const disc = document.createElement("div");
-  const discSize = Math.max(28, Math.round(size * 0.76));
   disc.style.cssText = `
-    width:${discSize}px;
-    height:${discSize}px;
+    width:90%;
+    height:90%;
+    aspect-ratio:1 / 1;
     border-radius:50%;
     position:relative;
     background:
@@ -758,15 +758,15 @@ function createCompactDiscNode(size) {
   const outerRing = document.createElement("div");
   outerRing.style.cssText = `
     position:absolute;
-    inset:${Math.max(2, Math.round(discSize * 0.016))}px;
+    inset:${Math.max(2, Math.round(size * 0.012))}px;
     border-radius:50%;
-    border:${Math.max(1, Math.round(discSize * 0.012))}px solid rgba(255,255,255,0.22);
-    box-shadow:inset 0 0 ${Math.max(4, Math.round(discSize * 0.035))}px rgba(0,0,0,0.18);
+    border:${Math.max(1, Math.round(size * 0.01))}px solid rgba(255,255,255,0.22);
+    box-shadow:inset 0 0 ${Math.max(4, Math.round(size * 0.03))}px rgba(0,0,0,0.18);
   `;
   disc.appendChild(outerRing);
 
   const labelRing = document.createElement("div");
-  const labelRingSize = Math.round(discSize * 0.38);
+  const labelRingSize = Math.round(size * 0.36);
   labelRing.style.cssText = `
     position:absolute;
     top:50%;
@@ -783,7 +783,7 @@ function createCompactDiscNode(size) {
   disc.appendChild(labelRing);
 
   const hub = document.createElement("div");
-  const hubSize = Math.max(8, Math.round(discSize * 0.12));
+  const hubSize = Math.max(8, Math.round(size * 0.11));
   hub.style.cssText = `
     position:absolute;
     top:50%;
@@ -794,7 +794,7 @@ function createCompactDiscNode(size) {
     border-radius:50%;
     background:radial-gradient(circle, #0e1013 0%, #1a1d22 55%, #060708 100%);
     box-shadow:
-      0 0 0 ${Math.max(2, Math.round(discSize * 0.03))}px rgba(205,210,217,0.62),
+      0 0 0 ${Math.max(2, Math.round(size * 0.028))}px rgba(205,210,217,0.62),
       inset 0 1px 2px rgba(255,255,255,0.14);
   `;
   disc.appendChild(hub);
@@ -817,10 +817,14 @@ function createJewelcaseNode(album, options = {}) {
   const coverSize = options.coverSize ?? 340;
   const spineWidth = options.spineWidth ?? 32;
   const frameInset = options.frameInset ?? 0.97;
+  const fluidWidth = Boolean(options.fluidWidth);
+  const totalWidth = coverSize + spineWidth;
+  const hasCoverImage = Boolean(album.image_url);
   const caseNode = document.createElement("div");
   caseNode.style.cssText = `
-    width:${coverSize + spineWidth}px;
-    height:${coverSize}px;
+    width:${fluidWidth ? "100%" : `${totalWidth}px`};
+    height:${fluidWidth ? "auto" : `${coverSize}px`};
+    aspect-ratio:${totalWidth} / ${coverSize};
     background:linear-gradient(135deg,#23262a 80%,#444 100%);
     border-radius:0;
     box-shadow:0 12px 36px #000b, 0 0 0 8px #222a inset;
@@ -829,7 +833,7 @@ function createJewelcaseNode(album, options = {}) {
     overflow:hidden;
     border:4px solid #191c20;
     position:relative;
-    flex:0 0 auto;
+    flex:${fluidWidth ? "1 1 auto" : "0 0 auto"};
   `;
 
   const spine = document.createElement("div");
@@ -865,8 +869,8 @@ function createJewelcaseNode(album, options = {}) {
 
   const frame = document.createElement("div");
   frame.style.cssText = `
-    width:${frameInset * 100}%;
-    height:${frameInset * 100}%;
+    width:${(hasCoverImage ? frameInset : 0.998) * 100}%;
+    height:${(hasCoverImage ? frameInset : 0.998) * 100}%;
     background:#222;
     display:flex;
     align-items:center;
@@ -877,7 +881,7 @@ function createJewelcaseNode(album, options = {}) {
     z-index:1;
   `;
 
-  if (album.image_url) {
+  if (hasCoverImage) {
     const coverImage = createArtworkNode(album.image_url, "");
     coverImage.alt = album.title || "Album cover";
     coverImage.loading = "eager";
@@ -975,7 +979,12 @@ function renderBandDetail(detail) {
         <div class="sectionTitle">Discography</div>
         <select class="searchSelect discographyFilter" id="discographyFilter"></select>
       </div>
-      <div class="albumList" id="discographyList"></div>
+      <div class="discographyWorkspace">
+        <div class="albumShelf">
+          <div class="albumList" id="discographyList"></div>
+        </div>
+        <aside class="albumInspector" id="albumInspector"></aside>
+      </div>
     </section>
   `;
 
@@ -1011,6 +1020,7 @@ function renderBandDetail(detail) {
   });
 
   renderDiscography(detail);
+  renderAlbumInspector();
   updateAppMenuState();
 }
 
@@ -1027,15 +1037,22 @@ function resolveDiscographyFilters(discography) {
 
 function renderDiscography(detail) {
   const list = document.getElementById("discographyList");
-  if (!list) {
+  const shelf = list?.closest(".albumShelf");
+  if (!list || !shelf) {
     return;
   }
 
-  const previousScrollTop = list.scrollTop;
+  const previousScrollTop = shelf.scrollTop;
   list.replaceChildren();
   let albums = detail.discography ?? [];
   if (state.selectedBandFilter) {
     albums = albums.filter((album) => (String(album.type ?? "").trim() || "Other") === state.selectedBandFilter);
+  }
+
+  if (state.expandedAlbumUrl && !albums.some((album) => album.url === state.expandedAlbumUrl)) {
+    state.expandedAlbumUrl = null;
+    state.expandedAlbumLoadingUrl = null;
+    state.expandedAlbumError = null;
   }
 
   if (albums.length === 0) {
@@ -1045,12 +1062,11 @@ function renderDiscography(detail) {
       ? "No releases for this filter. Try another discography type."
       : "No discography loaded. This band page did not expose a release table.";
     list.appendChild(empty);
+    renderAlbumInspector();
     return;
   }
 
   for (const album of albums) {
-    const entry = document.createElement("div");
-    entry.className = "albumEntry";
     const button = document.createElement("button");
     button.type = "button";
     button.className = "albumRow";
@@ -1062,7 +1078,7 @@ function renderDiscography(detail) {
     }
     button.innerHTML = `
       <div id="album-art-${Math.random().toString(36).slice(2)}"></div>
-      <div>
+      <div class="albumBody">
         <div class="albumTitle">${escapeHtml(album.title || "Untitled release")}</div>
         <div class="albumMeta">
           <span>${escapeHtml(album.year || "Unknown year")}</span>
@@ -1070,30 +1086,27 @@ function renderDiscography(detail) {
           <span class="albumType albumTypeBadge" data-album-type-badge="${escapeHtml(resolveAlbumTypeName(album.type))}">${escapeHtml(album.type || "Other")}</span>
         </div>
       </div>
-      <div class="arrow">${album.url ? "›" : ""}</div>
+      <div class="arrow"></div>
     `;
     const artworkSlot = button.firstElementChild;
-    const jewelcaseNode = createJewelcaseNode(album, { coverSize: 72, spineWidth: 10, frameInset: 0.972 });
+    const jewelcaseNode = createJewelcaseNode(album, { coverSize: 102, spineWidth: 12, frameInset: 0.972, fluidWidth: true });
     jewelcaseNode.classList.add("albumArtworkJewelcase");
     artworkSlot.replaceWith(jewelcaseNode);
     if (album.url) {
       button.addEventListener("click", () => openAlbum(album));
     }
-    entry.appendChild(button);
     const badge = button.querySelector("[data-album-type-badge]");
     if (badge) {
       applyAlbumTypeBadgeStyle(badge, badge.dataset.albumTypeBadge || "");
     }
-
-    if (album.url && state.expandedAlbumUrl === album.url) {
-      const panel = buildExpandedAlbumPanel(album);
-      entry.appendChild(panel);
-    }
-
-    list.appendChild(entry);
+    list.appendChild(button);
   }
 
-  list.scrollTop = previousScrollTop;
+  shelf.scrollTop = previousScrollTop;
+  requestAnimationFrame(() => {
+    shelf.scrollTop = previousScrollTop;
+  });
+  renderAlbumInspector();
 }
 
 async function onBandSelected(band) {
@@ -1170,9 +1183,9 @@ async function openAlbum(album) {
 
   state.expandedAlbumUrl = album.url;
   state.expandedAlbumError = null;
+  renderDiscography(state.selectedBandDetail);
 
   if (state.albumDetailsByUrl[album.url]) {
-    renderDiscography(state.selectedBandDetail);
     return;
   }
 
@@ -1227,20 +1240,28 @@ function buildProviderUrl(bandName, albumTitle, trackTitle = "") {
 
 function buildExpandedAlbumPanel(albumSummary) {
   const panel = document.createElement("section");
-  panel.className = "sectionCard albumExpandedPanel";
+  panel.className = "albumInspectorPanel";
 
   if (state.expandedAlbumLoadingUrl === albumSummary.url) {
     panel.innerHTML = `
-      <div class="sectionTitle" style="font-size:20px;">Loading album...</div>
-      <div class="resultMeta">Fetching details for ${escapeHtml(albumSummary.title || "selected release")}.</div>
+      <div class="albumInspectorState">
+        <div>
+          <div class="sectionTitle">Loading album...</div>
+          <div class="resultMeta">Fetching details for ${escapeHtml(albumSummary.title || "selected release")}.</div>
+        </div>
+      </div>
     `;
     return panel;
   }
 
   if (state.expandedAlbumError?.url === albumSummary.url) {
     panel.innerHTML = `
-      <div class="sectionTitle" style="font-size:20px;">Album</div>
-      <div class="resultMeta">${escapeHtml(state.expandedAlbumError.message)}</div>
+      <div class="albumInspectorState">
+        <div>
+          <div class="sectionTitle">Album</div>
+          <div class="resultMeta">${escapeHtml(state.expandedAlbumError.message)}</div>
+        </div>
+      </div>
     `;
     return panel;
   }
@@ -1248,8 +1269,12 @@ function buildExpandedAlbumPanel(albumSummary) {
   const album = state.albumDetailsByUrl[albumSummary.url];
   if (!album) {
     panel.innerHTML = `
-      <div class="sectionTitle" style="font-size:20px;">Album</div>
-      <div class="resultMeta">No album detail loaded yet.</div>
+      <div class="albumInspectorState">
+        <div>
+          <div class="sectionTitle">Album</div>
+          <div class="resultMeta">Preparing album details.</div>
+        </div>
+      </div>
     `;
     return panel;
   }
@@ -1268,7 +1293,7 @@ function buildExpandedAlbumPanel(albumSummary) {
     .join("");
 
   panel.innerHTML = `
-    <section class="heroCard albumExpandedHero">
+    <section class="heroCard albumInspectorHero">
       <div id="album-inline-art-${Math.random().toString(36).slice(2)}"></div>
       <div>
         <div class="heroTitle" style="font-size:28px;">${escapeHtml(album.title || "Album")}</div>
@@ -1284,13 +1309,13 @@ function buildExpandedAlbumPanel(albumSummary) {
       </div>
     </section>
     <section class="sectionCard" style="margin-top:0;">
-      <div class="sectionTitle" style="font-size:22px; margin-bottom:12px;">Tracklist</div>
+      <div class="albumInspectorTitle">Tracklist</div>
       <div class="trackList">${tracks || '<div class="resultMeta">No tracklist returned.</div>'}</div>
     </section>
   `;
 
   const artworkSlot = panel.querySelector("[id^='album-inline-art-']");
-  const jewelcaseNode = createJewelcaseNode(album, { coverSize: 220, spineWidth: 24, frameInset: 0.972 });
+  const jewelcaseNode = createJewelcaseNode(album, { coverSize: 180, spineWidth: 20, frameInset: 0.972 });
   artworkSlot?.replaceWith(jewelcaseNode);
 
   panel.querySelector("[data-album-open-browser]")?.addEventListener("click", () => globalThis.ferrum.openExternal(album.url));
@@ -1309,6 +1334,42 @@ function buildExpandedAlbumPanel(albumSummary) {
   }
 
   return panel;
+}
+
+function renderAlbumInspector() {
+  const inspector = document.getElementById("albumInspector");
+  if (!inspector) {
+    return;
+  }
+
+  inspector.replaceChildren();
+
+  if (!state.expandedAlbumUrl) {
+    inspector.innerHTML = `
+      <div class="albumInspectorState">
+        <div>
+          <div class="sectionTitle">Album details</div>
+          <div class="resultMeta">Pick a release from the discography to inspect tracklist, label and quick actions.</div>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  const selectedAlbum = state.selectedBandDetail?.discography?.find((album) => album.url === state.expandedAlbumUrl);
+  if (!selectedAlbum) {
+    inspector.innerHTML = `
+      <div class="albumInspectorState">
+        <div>
+          <div class="sectionTitle">Album details</div>
+          <div class="resultMeta">The selected release is not visible in the current filter.</div>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  inspector.appendChild(buildExpandedAlbumPanel(selectedAlbum));
 }
 
 function startAlbumPlayback(album, trackTitle = "") {
