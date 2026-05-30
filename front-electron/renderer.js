@@ -970,15 +970,12 @@ function renderBandDetail(detail) {
               ? '<button class="button" id="openProfileButton" type="button">Open in browser</button>'
               : ""
           }
+          <select class="searchSelect discographyFilter" id="discographyFilter"></select>
         </div>
       </div>
       <div id="bandHeroArtwork"></div>
     </section>
     <section class="sectionCard discographySection">
-      <div class="sectionHeader discographyHeader">
-        <div class="sectionTitle">Discography</div>
-        <select class="searchSelect discographyFilter" id="discographyFilter"></select>
-      </div>
       <div class="discographyWorkspace">
         <div class="albumShelf">
           <div class="albumList" id="discographyList"></div>
@@ -1011,7 +1008,11 @@ function renderBandDetail(detail) {
     discographyFilter.appendChild(option);
   }
 
-  const selectedFilter = state.selectedBandFilter && filters.includes(state.selectedBandFilter) ? state.selectedBandFilter : null;
+  const selectedFilter = filters.includes("Full-length")
+    ? "Full-length"
+    : state.selectedBandFilter && filters.includes(state.selectedBandFilter)
+      ? state.selectedBandFilter
+      : null;
   discographyFilter.value = selectedFilter ?? "";
   state.selectedBandFilter = selectedFilter;
   discographyFilter.addEventListener("change", () => {
