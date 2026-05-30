@@ -1,5 +1,6 @@
 package cl.tracktec.ferrum.infrastructure.api;
 
+import cl.tracktec.ferrum.application.port.CacheStorePort;
 import cl.tracktec.ferrum.application.model.SearchHistoryEntry;
 import cl.tracktec.ferrum.application.usecase.ClearBandCacheUseCase;
 import cl.tracktec.ferrum.application.usecase.GetAlbumDetailsUseCase;
@@ -10,6 +11,8 @@ import cl.tracktec.ferrum.domain.AlbumDetail;
 import cl.tracktec.ferrum.domain.BandDetail;
 import cl.tracktec.ferrum.domain.BandSearchType;
 import cl.tracktec.ferrum.domain.BandSummary;
+import cl.tracktec.ferrum.infrastructure.cache.CachePayloadType;
+import cl.tracktec.ferrum.infrastructure.cache.CachePolicy;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,24 +29,33 @@ import java.util.Map;
 @RequestMapping("/api")
 public class FerrumApiController {
 
+    private static final CachePayloadType<BandDetail> BAND_PAYLOAD_TYPE = CachePayloadType.of(BandDetail.class);
+    private static final CachePayloadType<AlbumDetail> ALBUM_PAYLOAD_TYPE = CachePayloadType.of(AlbumDetail.class);
+
     private final SearchBandsUseCase searchBands;
     private final GetBandDetailsUseCase getBandDetails;
     private final GetAlbumDetailsUseCase getAlbumDetails;
     private final GetSearchHistoryUseCase getSearchHistory;
     private final ClearBandCacheUseCase clearBandCache;
+    private final CacheStorePort cacheStore;
+    private final CachePolicy cachePolicy;
 
     public FerrumApiController(
             SearchBandsUseCase searchBands,
             GetBandDetailsUseCase getBandDetails,
             GetAlbumDetailsUseCase getAlbumDetails,
             GetSearchHistoryUseCase getSearchHistory,
-            ClearBandCacheUseCase clearBandCache
+            ClearBandCacheUseCase clearBandCache,
+            CacheStorePort cacheStore,
+            CachePolicy cachePolicy
     ) {
         this.searchBands = searchBands;
         this.getBandDetails = getBandDetails;
         this.getAlbumDetails = getAlbumDetails;
         this.getSearchHistory = getSearchHistory;
         this.clearBandCache = clearBandCache;
+        this.cacheStore = cacheStore;
+        this.cachePolicy = cachePolicy;
     }
 
     @GetMapping("/search")
@@ -77,6 +89,18 @@ public class FerrumApiController {
         } catch (RuntimeException e) {
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, e.getMessage(), e);
         }
+    }
+
+    @GetMapping("/band-cache")
+    public Map<String, Boolean> hasBandCache(@RequestParam String url) {
+        boolean cached = cacheStore.read(cachePolicy.forBand(url), BAND_PAYLOAD_TYPE).isPresent();
+        return Map.of("cached", cached);
+    }
+
+    @GetMapping("/album-cache")
+    public Map<String, Boolean> hasAlbumCache(@RequestParam String url) {
+        boolean cached = cacheStore.read(cachePolicy.forAlbum(url), ALBUM_PAYLOAD_TYPE).isPresent();
+        return Map.of("cached", cached);
     }
 
     @GetMapping("/health")

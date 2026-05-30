@@ -98,10 +98,6 @@ const elements = {
   resultsEmptyTitle: document.getElementById("resultsEmptyTitle"),
   resultsEmptyDescription: document.getElementById("resultsEmptyDescription"),
   favoritesToggle: document.getElementById("favoritesToggle"),
-  nowPlayingBar: document.getElementById("nowPlayingBar"),
-  nowPlayingTitle: document.getElementById("nowPlayingTitle"),
-  nowPlayingMeta: document.getElementById("nowPlayingMeta"),
-  nowPlayingTogglePlaybackButton: document.getElementById("nowPlayingTogglePlaybackButton"),
   detailEmpty: document.getElementById("detailEmpty"),
   detailContent: document.getElementById("detailContent"),
   historyModal: document.getElementById("historyModal"),
@@ -149,7 +145,12 @@ const state = {
     favoriteBands: []
   },
   favoriteArtworkLoading: new Set(),
-  currentPlayback: null
+  expandedAlbumUrl: null,
+  expandedAlbumLoadingUrl: null,
+  expandedAlbumError: null,
+  albumDetailsByUrl: {},
+  taskLoadingTimer: null,
+  detailLoadingTimer: null
 };
 
 elements.appVersion.textContent = `electron · ${globalThis.ferrum?.version ?? "unknown"}`;
@@ -484,19 +485,33 @@ function setLoadingBand(isLoadingBand, bandName = "") {
   if (isLoadingBand) {
     presentTaskLoading("Loading band", `Fetching details for ${bandName || "selected band"}...`);
     elements.resultsList.style.pointerEvents = "none";
-    showDetailPlaceholder("Loading band", `Fetching details for ${bandName || "selected band"}...`);
     return;
+  }
+  if (state.detailLoadingTimer) {
+    window.clearTimeout(state.detailLoadingTimer);
+    state.detailLoadingTimer = null;
   }
   elements.resultsList.style.pointerEvents = "";
 }
 
 function presentTaskLoading(title, message) {
-  elements.taskLoadingTitle.textContent = title;
-  elements.taskLoadingMessage.textContent = message;
-  elements.taskLoadingOverlay.classList.remove("hidden");
+  if (state.taskLoadingTimer) {
+    window.clearTimeout(state.taskLoadingTimer);
+  }
+
+  state.taskLoadingTimer = window.setTimeout(() => {
+    elements.taskLoadingTitle.textContent = title;
+    elements.taskLoadingMessage.textContent = message;
+    elements.taskLoadingOverlay.classList.remove("hidden");
+    state.taskLoadingTimer = null;
+  }, 120);
 }
 
 function closeTaskLoading() {
+  if (state.taskLoadingTimer) {
+    window.clearTimeout(state.taskLoadingTimer);
+    state.taskLoadingTimer = null;
+  }
   elements.taskLoadingOverlay.classList.add("hidden");
 }
 
@@ -916,6 +931,10 @@ function renderBandDetail(detail) {
     ensureAlbumTypeColor(album.type);
   }
   state.selectedBandDetail = detail;
+  state.expandedAlbumUrl = null;
+  state.expandedAlbumLoadingUrl = null;
+  state.expandedAlbumError = null;
+  state.albumDetailsByUrl = {};
   persistFavoriteBandArtwork(detail);
   showDetailContent();
 
@@ -1012,6 +1031,7 @@ function renderDiscography(detail) {
     return;
   }
 
+  const previousScrollTop = list.scrollTop;
   list.replaceChildren();
   let albums = detail.discography ?? [];
   if (state.selectedBandFilter) {
@@ -1029,9 +1049,14 @@ function renderDiscography(detail) {
   }
 
   for (const album of albums) {
+    const entry = document.createElement("div");
+    entry.className = "albumEntry";
     const button = document.createElement("button");
     button.type = "button";
     button.className = "albumRow";
+    if (state.expandedAlbumUrl === album.url) {
+      button.classList.add("isExpanded");
+    }
     if (!album.url) {
       button.disabled = true;
     }
@@ -1054,12 +1079,21 @@ function renderDiscography(detail) {
     if (album.url) {
       button.addEventListener("click", () => openAlbum(album));
     }
-    list.appendChild(button);
+    entry.appendChild(button);
     const badge = button.querySelector("[data-album-type-badge]");
     if (badge) {
       applyAlbumTypeBadgeStyle(badge, badge.dataset.albumTypeBadge || "");
     }
+
+    if (album.url && state.expandedAlbumUrl === album.url) {
+      const panel = buildExpandedAlbumPanel(album);
+      entry.appendChild(panel);
+    }
+
+    list.appendChild(entry);
   }
+
+  list.scrollTop = previousScrollTop;
 }
 
 async function onBandSelected(band) {
@@ -1070,7 +1104,17 @@ async function onBandSelected(band) {
   state.resultsScrollTop[state.resultsMode] = elements.resultsBody.scrollTop;
   state.selectedBandSummary = band;
   renderResultsList();
-  setLoadingBand(true, band.name);
+
+  let shouldShowLoading = true;
+  try {
+    shouldShowLoading = !(await globalThis.ferrum.api.hasBandCache(band.profile_url));
+  } catch {
+    shouldShowLoading = true;
+  }
+
+  if (shouldShowLoading) {
+    setLoadingBand(true, band.name);
+  }
 
   try {
     const detail = await globalThis.ferrum.api.getBand(band.profile_url);
@@ -1117,27 +1161,53 @@ async function openAlbum(album) {
     return;
   }
 
-  elements.albumModalTitle.textContent = "Loading album...";
-  elements.albumModalSubtitle.textContent = album.title || "";
-  elements.albumModalBody.innerHTML = "";
-  presentTaskLoading("Loading album", `Fetching details for ${album.title || "selected release"}...`);
+  if (state.expandedAlbumUrl === album.url && state.expandedAlbumLoadingUrl !== album.url) {
+    state.expandedAlbumUrl = null;
+    state.expandedAlbumError = null;
+    renderDiscography(state.selectedBandDetail);
+    return;
+  }
+
+  state.expandedAlbumUrl = album.url;
+  state.expandedAlbumError = null;
+
+  if (state.albumDetailsByUrl[album.url]) {
+    renderDiscography(state.selectedBandDetail);
+    return;
+  }
+
+  let shouldShowLoading = true;
+  try {
+    shouldShowLoading = !(await globalThis.ferrum.api.hasAlbumCache(album.url));
+  } catch {
+    shouldShowLoading = true;
+  }
+
+  if (shouldShowLoading) {
+    state.expandedAlbumLoadingUrl = album.url;
+    presentTaskLoading("Loading album", `Fetching details for ${album.title || "selected release"}...`);
+    renderDiscography(state.selectedBandDetail);
+  }
 
   try {
     const detail = await globalThis.ferrum.api.getAlbum(album.url);
     const normalizedDetail = normalizeAlbumDetail(detail);
+    state.albumDetailsByUrl[album.url] = normalizedDetail;
     if (state.selectedBandDetail) {
       const currentAlbum = state.selectedBandDetail.discography.find((item) => item.url === normalizedDetail.url);
       if (currentAlbum && normalizedDetail.image_url) {
         currentAlbum.image_url = normalizedDetail.image_url;
-        renderDiscography(state.selectedBandDetail);
       }
     }
-    renderAlbumModal(normalizedDetail);
-    elements.albumModal.classList.remove("hidden");
+    state.expandedAlbumError = null;
   } catch (error) {
-    elements.albumModalTitle.textContent = "Album";
-    elements.albumModalSubtitle.textContent = error?.message || "Failed to load album";
+    state.expandedAlbumError = {
+      url: album.url,
+      message: error?.message || "Failed to load album"
+    };
   } finally {
+    state.expandedAlbumLoadingUrl = null;
+    renderDiscography(state.selectedBandDetail);
     closeTaskLoading();
   }
 }
@@ -1155,146 +1225,34 @@ function buildProviderUrl(bandName, albumTitle, trackTitle = "") {
   return `https://music.youtube.com/search?q=${encoded}`;
 }
 
-function syncNowPlaying() {
-  const playback = state.currentPlayback;
-  if (!playback?.url) {
-    elements.nowPlayingBar.classList.add("hidden");
-    elements.nowPlayingTitle.textContent = "Nada reproduciendose";
-    elements.nowPlayingMeta.textContent = "Pulsa Play en un track para cargarlo dentro de Ferrum.";
-    elements.nowPlayingTogglePlaybackButton.textContent = "Pause";
-    elements.nowPlayingTogglePlaybackButton.disabled = true;
-    return;
+function buildExpandedAlbumPanel(albumSummary) {
+  const panel = document.createElement("section");
+  panel.className = "sectionCard albumExpandedPanel";
+
+  if (state.expandedAlbumLoadingUrl === albumSummary.url) {
+    panel.innerHTML = `
+      <div class="sectionTitle" style="font-size:20px;">Loading album...</div>
+      <div class="resultMeta">Fetching details for ${escapeHtml(albumSummary.title || "selected release")}.</div>
+    `;
+    return panel;
   }
 
-  elements.nowPlayingBar.classList.remove("hidden");
-  elements.nowPlayingTitle.textContent = playback.trackTitle || playback.albumTitle || "Seleccion actual";
-  elements.nowPlayingMeta.textContent = [playback.bandName, playback.albumTitle, playback.providerLabel || resolveProviderLabel()].filter(Boolean).join("  •  ");
-  elements.nowPlayingTogglePlaybackButton.textContent = playback.isPaused ? "Play" : "Pause";
-  elements.nowPlayingTogglePlaybackButton.disabled = false;
-}
-
-async function toggleNowPlayingPlayback() {
-  const playback = state.currentPlayback;
-  const webview = document.getElementById("albumInlinePlayer");
-  if (!playback?.url || !webview) {
-    return;
+  if (state.expandedAlbumError?.url === albumSummary.url) {
+    panel.innerHTML = `
+      <div class="sectionTitle" style="font-size:20px;">Album</div>
+      <div class="resultMeta">${escapeHtml(state.expandedAlbumError.message)}</div>
+    `;
+    return panel;
   }
 
-  try {
-    const result = await webview.executeJavaScript(`
-      (() => {
-        const media = document.querySelector("video, audio");
-        if (!media) {
-          return { ok: false, reason: "no-media" };
-        }
-        if (media.paused) {
-          const playResult = media.play();
-          return Promise.resolve(playResult)
-            .then(() => ({ ok: true, paused: false }))
-            .catch((error) => ({ ok: false, reason: String(error || "play-failed") }));
-        }
-        media.pause();
-        return { ok: true, paused: true };
-      })();
-    `);
-
-    if (!result?.ok) {
-      return;
-    }
-
-    state.currentPlayback = {
-      ...playback,
-      isPaused: Boolean(result.paused)
-    };
-    syncNowPlaying();
-  } catch {
-    // Best-effort control only; providers may not expose a direct media element.
+  const album = state.albumDetailsByUrl[albumSummary.url];
+  if (!album) {
+    panel.innerHTML = `
+      <div class="sectionTitle" style="font-size:20px;">Album</div>
+      <div class="resultMeta">No album detail loaded yet.</div>
+    `;
+    return panel;
   }
-}
-
-function setupAlbumInlinePlayer() {
-  const section = document.getElementById("albumInlinePlayerSection");
-  const status = document.getElementById("albumInlinePlayerStatus");
-  const webview = document.getElementById("albumInlinePlayer");
-  const openExternalButton = document.getElementById("albumInlinePlayerOpenExternalButton");
-  const hideButton = document.getElementById("albumInlinePlayerHideButton");
-  const showButton = document.getElementById("albumInlinePlayerShowButton");
-
-  if (!section || !status || !webview || !hideButton || !showButton) {
-    return null;
-  }
-
-  const setCollapsed = (collapsed) => {
-    section.classList.toggle("isCollapsed", collapsed);
-    showButton.classList.toggle("hidden", !collapsed);
-    hideButton.classList.toggle("hidden", collapsed);
-  };
-
-  if (webview.dataset.playerBound !== "true") {
-    webview.dataset.playerBound = "true";
-
-    webview.addEventListener("did-start-loading", () => {
-      const label = webview.dataset.pendingLabel || `current ${resolveProviderLabel()} selection`;
-      status.textContent = `Loading ${label} inside Ferrum...`;
-    });
-
-    webview.addEventListener("did-stop-loading", () => {
-      const label = webview.dataset.pendingLabel || `current ${resolveProviderLabel()} selection`;
-      status.textContent = `${label} ready inside Ferrum.`;
-    });
-
-    webview.addEventListener("did-fail-load", (event) => {
-      if (event.errorCode === -3) {
-        return;
-      }
-      status.textContent = `Embedded ${resolveProviderLabel()} could not load this view.`;
-    });
-
-    openExternalButton?.addEventListener("click", () => {
-      if (state.currentPlayback?.url) {
-        globalThis.ferrum.openExternal(state.currentPlayback.url);
-      }
-    });
-
-    hideButton.addEventListener("click", () => {
-      const label = webview.dataset.pendingLabel || `current ${resolveProviderLabel()} selection`;
-      status.textContent = `${label} keeps playing in the background.`;
-      setCollapsed(true);
-    });
-
-    showButton.addEventListener("click", () => {
-      setCollapsed(false);
-      section.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-  }
-
-  return { section, status, webview, setCollapsed };
-}
-
-function loadAlbumInlinePlayer(url, label) {
-  const player = setupAlbumInlinePlayer();
-  if (!player) {
-    globalThis.ferrum.openExternal(url);
-    return;
-  }
-
-  player.section.classList.remove("hidden");
-  player.setCollapsed(false);
-  player.webview.dataset.pendingLabel = label;
-  player.status.textContent = `Loading ${label} inside Ferrum...`;
-  if (typeof player.webview.loadURL === "function") {
-    player.webview.loadURL(url);
-  } else if (player.webview.getAttribute("src") !== url) {
-    player.webview.setAttribute("src", url);
-  } else {
-    player.webview.reload();
-  }
-  player.section.scrollIntoView({ behavior: "smooth", block: "start" });
-}
-
-function renderAlbumModal(album) {
-  elements.albumModalTitle.textContent = album.title || "Album";
-  elements.albumModalSubtitle.textContent = [album.type, album.release_date, album.label].filter(Boolean).join("  •  ");
 
   const tracks = (album.tracks ?? [])
     .map(
@@ -1309,9 +1267,9 @@ function renderAlbumModal(album) {
     )
     .join("");
 
-  elements.albumModalBody.innerHTML = `
-    <section class="heroCard" style="grid-template-columns:244px 1fr; align-items:center;">
-      <div id="albumModalArtwork"></div>
+  panel.innerHTML = `
+    <section class="heroCard albumExpandedHero">
+      <div id="album-inline-art-${Math.random().toString(36).slice(2)}"></div>
       <div>
         <div class="heroTitle" style="font-size:28px;">${escapeHtml(album.title || "Album")}</div>
         <div class="chips">
@@ -1320,67 +1278,44 @@ function renderAlbumModal(album) {
           ${album.label ? `<span class="chip">${escapeHtml(album.label)}</span>` : ""}
         </div>
         <div class="heroActions">
-          ${album.url ? '<button class="button" id="albumOpenBrowserButton" type="button">Open in Metal Archives</button>' : ""}
-          <button class="button" id="albumProviderButton" type="button">Search on ${escapeHtml(resolveProviderLabel())}</button>
+          ${album.url ? '<button class="button" data-album-open-browser type="button">Open in Metal Archives</button>' : ""}
+          <button class="button" data-album-provider type="button">Search on ${escapeHtml(resolveProviderLabel())}</button>
         </div>
       </div>
     </section>
-    <section class="sectionCard">
+    <section class="sectionCard" style="margin-top:0;">
       <div class="sectionTitle" style="font-size:22px; margin-bottom:12px;">Tracklist</div>
       <div class="trackList">${tracks || '<div class="resultMeta">No tracklist returned.</div>'}</div>
     </section>
   `;
 
+  const artworkSlot = panel.querySelector("[id^='album-inline-art-']");
   const jewelcaseNode = createJewelcaseNode(album, { coverSize: 220, spineWidth: 24, frameInset: 0.972 });
-  jewelcaseNode.id = "albumModalArtwork";
-  document.getElementById("albumModalArtwork").replaceWith(jewelcaseNode);
-  setupAlbumInlinePlayer();
+  artworkSlot?.replaceWith(jewelcaseNode);
 
-  document.getElementById("albumOpenBrowserButton")?.addEventListener("click", () => globalThis.ferrum.openExternal(album.url));
-  document.getElementById("albumProviderButton")?.addEventListener("click", () => {
-    const bandName = state.selectedBandDetail?.name || "";
-    const albumTitle = album.title || "";
-    const url = buildProviderUrl(bandName, albumTitle, "");
-    state.currentPlayback = {
-      url,
-      label: `${resolveProviderLabel()} results for ${albumTitle || "album"}`,
-      providerLabel: resolveProviderLabel(),
-      bandName,
-      albumTitle,
-      trackTitle: "",
-      isPaused: false
-    };
-    syncNowPlaying();
-    loadAlbumInlinePlayer(
-      url,
-      state.currentPlayback.label
-    );
+  panel.querySelector("[data-album-open-browser]")?.addEventListener("click", () => globalThis.ferrum.openExternal(album.url));
+  panel.querySelector("[data-album-provider]")?.addEventListener("click", () => {
+    startAlbumPlayback(album, "");
   });
 
-  for (const button of elements.albumModalBody.querySelectorAll("[data-track-title]")) {
+  for (const button of panel.querySelectorAll("[data-track-title]")) {
     button.addEventListener("click", () => {
-      const bandName = state.selectedBandDetail?.name || "";
-      const albumTitle = album.title || "";
-      const trackTitle = button.dataset.trackTitle || "";
-      const url = buildProviderUrl(bandName, albumTitle, trackTitle);
-      state.currentPlayback = {
-        url,
-        label: `${resolveProviderLabel()} results for ${trackTitle || "selected track"}`,
-        providerLabel: resolveProviderLabel(),
-        bandName,
-        albumTitle,
-        trackTitle,
-        isPaused: false
-      };
-      syncNowPlaying();
-      loadAlbumInlinePlayer(
-        url,
-        state.currentPlayback.label
-      );
+      startAlbumPlayback(album, button.dataset.trackTitle || "");
     });
   }
 
-  refreshAlbumTypeBadges();
+  for (const badge of panel.querySelectorAll("[data-album-type-badge]")) {
+    applyAlbumTypeBadgeStyle(badge, badge.dataset.albumTypeBadge || "");
+  }
+
+  return panel;
+}
+
+function startAlbumPlayback(album, trackTitle = "") {
+  const bandName = state.selectedBandDetail?.name || "";
+  const albumTitle = album.title || "";
+  const url = buildProviderUrl(bandName, albumTitle, trackTitle);
+  globalThis.ferrum.openExternal(url);
 }
 
 function renderSearchHistoryModal() {
@@ -1606,7 +1541,6 @@ async function bootstrap() {
   };
   applyTheme();
   applyFavoriteLogoOpacity();
-  syncNowPlaying();
   setText(elements.backendUrl, `url: ${config.backendUrl}`);
   renderResultsList();
 }
@@ -1639,10 +1573,6 @@ elements.favoritesToggle.addEventListener("click", () => {
   state.resultsScrollTop[state.resultsMode] = elements.resultsBody.scrollTop;
   state.resultsMode = state.resultsMode === "favorites" ? "search" : "favorites";
   renderResultsList();
-});
-
-elements.nowPlayingTogglePlaybackButton.addEventListener("click", async () => {
-  await toggleNowPlayingPlayback();
 });
 
 elements.resultsBody.addEventListener("scroll", () => {

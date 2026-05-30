@@ -13,7 +13,9 @@ contextBridge.exposeInMainWorld("ferrum", {
   api: {
     search: (query, searchType) => ipcRenderer.invoke("api-search", { query, searchType }),
     getBand: (profileUrl) => ipcRenderer.invoke("api-get-band", { profileUrl }),
+    hasBandCache: (profileUrl) => ipcRenderer.invoke("api-has-band-cache", { profileUrl }),
     getAlbum: (albumUrl) => ipcRenderer.invoke("api-get-album", { albumUrl }),
+    hasAlbumCache: (albumUrl) => ipcRenderer.invoke("api-has-album-cache", { albumUrl }),
     getSearchHistory: () => ipcRenderer.invoke("api-get-search-history"),
     clearBandCache: (profileUrl) => ipcRenderer.invoke("api-clear-band-cache", { profileUrl })
   },

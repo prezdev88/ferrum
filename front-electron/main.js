@@ -220,6 +220,11 @@ function httpGetJson(url) {
   });
 }
 
+async function httpGetCacheStatus(url) {
+  const payload = await httpGetJson(url);
+  return Boolean(payload?.cached);
+}
+
 function httpRequestJson(method, url) {
   return new Promise((resolve, reject) => {
     const request = net.request({ method, url });
@@ -410,10 +415,22 @@ ipcMain.handle("api-get-band", async (_event, { profileUrl }) => {
   return httpGetJson(url);
 });
 
+ipcMain.handle("api-has-band-cache", async (_event, { profileUrl }) => {
+  const backendUrl = requireBackendUrl();
+  const url = `${backendUrl}/api/band-cache?url=${encodeURIComponent(String(profileUrl ?? "").trim())}`;
+  return httpGetCacheStatus(url);
+});
+
 ipcMain.handle("api-get-album", async (_event, { albumUrl }) => {
   const backendUrl = requireBackendUrl();
   const url = `${backendUrl}/api/album?url=${encodeURIComponent(String(albumUrl ?? "").trim())}`;
   return httpGetJson(url);
+});
+
+ipcMain.handle("api-has-album-cache", async (_event, { albumUrl }) => {
+  const backendUrl = requireBackendUrl();
+  const url = `${backendUrl}/api/album-cache?url=${encodeURIComponent(String(albumUrl ?? "").trim())}`;
+  return httpGetCacheStatus(url);
 });
 
 ipcMain.handle("api-get-search-history", async () => {
