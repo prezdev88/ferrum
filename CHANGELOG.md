@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.3.0](https://github.com/prezdev88/ferrum/compare/v1.2.0...v1.3.0) (2026-05-30)
+
+
+### Features
+
+* adjust padding and height for band hero card and artwork; update discography filter logic ([4250bf1](https://github.com/prezdev88/ferrum/commit/4250bf1fd467a651162e541113abe5a35fec4d0c))
+* enhance album inspector and discography layout with responsive design ([3258e0d](https://github.com/prezdev88/ferrum/commit/3258e0d12e0f430d529a6aea9a16ee8bec58562b))
+
 ## [1.2.0](https://github.com/prezdev88/ferrum/compare/v1.1.0...v1.2.0) (2026-05-30)
 
 
