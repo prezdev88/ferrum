@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.2.0](https://github.com/prezdev88/ferrum/compare/v1.1.0...v1.2.0) (2026-05-30)
+
+
+### Features
+
+* add caching functionality for band and album details ([f8154a4](https://github.com/prezdev88/ferrum/commit/f8154a4b926444326fba979fd011010061a3323b))
+* enhance album display with jewelcase and compact disc visuals ([b379921](https://github.com/prezdev88/ferrum/commit/b3799211a37e7e07283f0eccdb53c593a519dfe8))
+* implement now playing bar and embedded player functionality ([9fd278c](https://github.com/prezdev88/ferrum/commit/9fd278c4e6596f77ea077becfef0bb6b0e5b89b7))
+
+
+### Refactor
+
+* remove backend, models, settings, run script, and styles from the Ferrum Gnome project ([62bfa0d](https://github.com/prezdev88/ferrum/commit/62bfa0db7f49a5cf4387f51a2eab9143fe75cc68))
+* remove unused AlbumDetail cache handling and localization files ([1643deb](https://github.com/prezdev88/ferrum/commit/1643debf83e9f9c4c4ef7d9714d6aef10a0d90c0))
+* update project structure to use Electron frontend and remove GTK components ([c93269e](https://github.com/prezdev88/ferrum/commit/c93269ee1b8b3709613f9250aa27732fb2a1d830))
+
 ## [1.1.0](https://github.com/prezdev88/ferrum/compare/v1.0.0...v1.1.0) (2026-05-24)
 
 
