@@ -689,6 +689,212 @@ function createArtworkNode(src, className) {
   return fallback;
 }
 
+function createCompactDiscNode(size) {
+  const discStage = document.createElement("div");
+  discStage.style.cssText = `
+    width:100%;
+    height:100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:radial-gradient(circle at 50% 45%, #1e2126 0%, #191c20 58%, #111317 100%);
+    overflow:hidden;
+  `;
+
+  const disc = document.createElement("div");
+  const discSize = Math.max(28, Math.round(size * 0.76));
+  disc.style.cssText = `
+    width:${discSize}px;
+    height:${discSize}px;
+    border-radius:50%;
+    position:relative;
+    background:
+      radial-gradient(circle at 28% 24%, rgba(255,255,255,0.95) 0 4%, rgba(255,255,255,0.24) 5%, rgba(255,255,255,0) 18%),
+      radial-gradient(circle at 50% 50%, #fbfbfd 0%, #d5d9df 22%, #8f969e 48%, #d7dbe0 63%, #7d848d 78%, #e4e7eb 88%, #b7bcc3 100%);
+    box-shadow:
+      0 10px 20px rgba(0, 0, 0, 0.4),
+      inset 0 2px 6px rgba(255, 255, 255, 0.55),
+      inset 0 -10px 18px rgba(0, 0, 0, 0.28);
+  `;
+
+  const iridescence = document.createElement("div");
+  iridescence.style.cssText = `
+    position:absolute;
+    inset:0;
+    border-radius:50%;
+    background:conic-gradient(
+      from 210deg,
+      rgba(116, 199, 255, 0.18),
+      rgba(255, 120, 190, 0.12),
+      rgba(255, 228, 122, 0.16),
+      rgba(100, 255, 184, 0.12),
+      rgba(116, 199, 255, 0.18)
+    );
+    mix-blend-mode:screen;
+    opacity:0.7;
+  `;
+  disc.appendChild(iridescence);
+
+  const outerRing = document.createElement("div");
+  outerRing.style.cssText = `
+    position:absolute;
+    inset:${Math.max(2, Math.round(discSize * 0.016))}px;
+    border-radius:50%;
+    border:${Math.max(1, Math.round(discSize * 0.012))}px solid rgba(255,255,255,0.22);
+    box-shadow:inset 0 0 ${Math.max(4, Math.round(discSize * 0.035))}px rgba(0,0,0,0.18);
+  `;
+  disc.appendChild(outerRing);
+
+  const labelRing = document.createElement("div");
+  const labelRingSize = Math.round(discSize * 0.38);
+  labelRing.style.cssText = `
+    position:absolute;
+    top:50%;
+    left:50%;
+    width:${labelRingSize}px;
+    height:${labelRingSize}px;
+    transform:translate(-50%, -50%);
+    border-radius:50%;
+    background:radial-gradient(circle, rgba(235,238,242,0.95) 0%, rgba(174,180,188,0.88) 58%, rgba(120,126,135,0.82) 100%);
+    box-shadow:
+      inset 0 1px 3px rgba(255,255,255,0.35),
+      inset 0 -2px 4px rgba(0,0,0,0.2);
+  `;
+  disc.appendChild(labelRing);
+
+  const hub = document.createElement("div");
+  const hubSize = Math.max(8, Math.round(discSize * 0.12));
+  hub.style.cssText = `
+    position:absolute;
+    top:50%;
+    left:50%;
+    width:${hubSize}px;
+    height:${hubSize}px;
+    transform:translate(-50%, -50%);
+    border-radius:50%;
+    background:radial-gradient(circle, #0e1013 0%, #1a1d22 55%, #060708 100%);
+    box-shadow:
+      0 0 0 ${Math.max(2, Math.round(discSize * 0.03))}px rgba(205,210,217,0.62),
+      inset 0 1px 2px rgba(255,255,255,0.14);
+  `;
+  disc.appendChild(hub);
+
+  const sheen = document.createElement("div");
+  sheen.style.cssText = `
+    position:absolute;
+    inset:0;
+    border-radius:50%;
+    background:linear-gradient(135deg, rgba(255,255,255,0.26) 0%, rgba(255,255,255,0.08) 20%, rgba(255,255,255,0) 48%, rgba(255,255,255,0.12) 76%, rgba(255,255,255,0) 100%);
+    opacity:0.9;
+  `;
+  disc.appendChild(sheen);
+
+  discStage.appendChild(disc);
+  return discStage;
+}
+
+function createJewelcaseNode(album, options = {}) {
+  const coverSize = options.coverSize ?? 340;
+  const spineWidth = options.spineWidth ?? 32;
+  const frameInset = options.frameInset ?? 0.97;
+  const caseNode = document.createElement("div");
+  caseNode.style.cssText = `
+    width:${coverSize + spineWidth}px;
+    height:${coverSize}px;
+    background:linear-gradient(135deg,#23262a 80%,#444 100%);
+    border-radius:0;
+    box-shadow:0 12px 36px #000b, 0 0 0 8px #222a inset;
+    display:flex;
+    flex-direction:row;
+    overflow:hidden;
+    border:4px solid #191c20;
+    position:relative;
+    flex:0 0 auto;
+  `;
+
+  const spine = document.createElement("div");
+  spine.style.cssText = `
+    width:${spineWidth}px;
+    background:linear-gradient(180deg,#121417 0%,#181b1f 100%);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    writing-mode:vertical-rl;
+    text-orientation:mixed;
+    box-shadow:inset -6px 0 14px #000f, inset 1px 0 0 #2a2d31;
+    border-right:2px solid #0b0d10;
+    position:relative;
+    flex:0 0 auto;
+  `;
+
+  const spineGloss = document.createElement("div");
+  spineGloss.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;box-shadow:inset 0 0 12px #fff3,0 0 8px #0008;pointer-events:none;";
+  spine.appendChild(spineGloss);
+
+  const front = document.createElement("div");
+  front.style.cssText = `
+    flex:1;
+    background:linear-gradient(120deg,#23262a 80%,#444 100%);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-left:2px solid #191c20;
+    position:relative;
+    overflow:hidden;
+  `;
+
+  const frame = document.createElement("div");
+  frame.style.cssText = `
+    width:${frameInset * 100}%;
+    height:${frameInset * 100}%;
+    background:#222;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    box-shadow:0 2px 8px #0006;
+    border:1px solid #2a2d31;
+    position:relative;
+    z-index:1;
+  `;
+
+  if (album.image_url) {
+    const coverImage = createArtworkNode(album.image_url, "");
+    coverImage.alt = album.title || "Album cover";
+    coverImage.loading = "eager";
+    coverImage.style.cssText = "width:calc(100% - 1px);height:calc(100% - 1px);object-fit:cover;box-shadow:0 0 8px #0004;background:#222;";
+    frame.appendChild(coverImage);
+  } else {
+    frame.appendChild(createCompactDiscNode(coverSize));
+  }
+
+  front.appendChild(frame);
+
+  const frontGloss = document.createElement("div");
+  frontGloss.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;box-shadow:inset 0 0 32px #fff3,0 0 24px #0008;pointer-events:none;";
+  front.appendChild(frontGloss);
+
+  const hinge = document.createElement("div");
+  hinge.style.cssText = `
+    position:absolute;
+    bottom:${Math.max(8, Math.round(coverSize * 0.035))}px;
+    right:${Math.max(12, Math.round(coverSize * 0.053))}px;
+    width:${Math.max(24, Math.round(coverSize * 0.11))}px;
+    height:${Math.max(24, Math.round(coverSize * 0.11))}px;
+    border-radius:50%;
+    background:radial-gradient(circle,#fff8 60%,#aaa2 100%);
+    box-shadow:0 2px 8px #0006;
+    opacity:0.18;
+    pointer-events:none;
+  `;
+  front.appendChild(hinge);
+
+  const plasticTexture = document.createElement("div");
+  plasticTexture.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;mix-blend-mode:soft-light;background:repeating-linear-gradient(120deg,rgba(255,255,255,0.04) 0 2px,transparent 2px 12px);";
+
+  caseNode.append(spine, front, plasticTexture);
+  return caseNode;
+}
+
 function renderBandStatusChip(status) {
   if (!status) {
     return "";
@@ -837,7 +1043,9 @@ function renderDiscography(detail) {
       <div class="arrow">${album.url ? "›" : ""}</div>
     `;
     const artworkSlot = button.firstElementChild;
-    artworkSlot.replaceWith(createArtworkNode(album.image_url, "albumArtwork"));
+    const jewelcaseNode = createJewelcaseNode(album, { coverSize: 72, spineWidth: 10, frameInset: 0.972 });
+    jewelcaseNode.classList.add("albumArtworkJewelcase");
+    artworkSlot.replaceWith(jewelcaseNode);
     if (album.url) {
       button.addEventListener("click", () => openAlbum(album));
     }
@@ -960,7 +1168,7 @@ function renderAlbumModal(album) {
     .join("");
 
   elements.albumModalBody.innerHTML = `
-    <section class="heroCard" style="grid-template-columns:220px 1fr;">
+    <section class="heroCard" style="grid-template-columns:244px 1fr; align-items:center;">
       <div id="albumModalArtwork"></div>
       <div>
         <div class="heroTitle" style="font-size:28px;">${escapeHtml(album.title || "Album")}</div>
@@ -981,9 +1189,9 @@ function renderAlbumModal(album) {
     </section>
   `;
 
-  const artworkNode = createArtworkNode(album.image_url, "artwork");
-  artworkNode.classList.add("artworkSquare");
-  document.getElementById("albumModalArtwork").replaceWith(artworkNode);
+  const jewelcaseNode = createJewelcaseNode(album, { coverSize: 220, spineWidth: 24, frameInset: 0.972 });
+  jewelcaseNode.id = "albumModalArtwork";
+  document.getElementById("albumModalArtwork").replaceWith(jewelcaseNode);
 
   document.getElementById("albumOpenBrowserButton")?.addEventListener("click", () => globalThis.ferrum.openExternal(album.url));
   document.getElementById("albumProviderButton")?.addEventListener("click", () => {
