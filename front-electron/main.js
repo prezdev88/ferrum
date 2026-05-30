@@ -347,7 +347,8 @@ function createWindow() {
     backgroundColor: "#0b0d10",
     webPreferences: {
       contextIsolation: true,
-      preload: path.join(__dirname, "preload.js")
+      preload: path.join(__dirname, "preload.js"),
+      webviewTag: true
     }
   });
 

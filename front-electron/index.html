@@ -429,6 +429,40 @@
         position: relative;
       }
 
+      .nowPlayingBar {
+        margin-top: 14px;
+        padding: 14px 18px;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 16px;
+        align-items: center;
+      }
+
+      .nowPlayingBar.hidden {
+        display: none;
+      }
+
+      .nowPlayingEyebrow {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .nowPlayingTitle {
+        margin-top: 4px;
+        font-size: 16px;
+        font-weight: 900;
+      }
+
+      .nowPlayingMeta {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
       .detailScroll {
         height: 100%;
         overflow: hidden;
@@ -747,6 +781,58 @@
         gap: 8px;
       }
 
+      .embeddedPlayerSection {
+        display: grid;
+        gap: 12px;
+      }
+
+      .embeddedPlayerSection.isCollapsed .embeddedPlayerFrame {
+        display: none;
+      }
+
+      .embeddedPlayerSection.isCollapsed .embeddedPlayerStatus {
+        padding: 10px 12px;
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      .embeddedPlayerHeader {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .embeddedPlayerStatus {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .embeddedPlayerShowButton.hidden {
+        display: none;
+      }
+
+      .embeddedPlayerFrame {
+        min-height: 420px;
+        border-radius: 18px;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        background:
+          radial-gradient(circle at top, rgba(255,255,255,0.08), transparent 38%),
+          linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+      }
+
+      .embeddedPlayerWebview {
+        display: flex;
+        width: 100%;
+        min-height: 420px;
+        background: #06080b;
+      }
+
       .settingsCard {
         width: min(720px, 100%);
         max-height: min(560px, calc(100vh - 48px));
@@ -854,6 +940,17 @@
       .trackMeta {
         color: var(--muted);
         font-size: 12px;
+      }
+
+      @media (max-width: 1080px) {
+        .nowPlayingBar {
+          grid-template-columns: 1fr;
+        }
+
+        .embeddedPlayerFrame,
+        .embeddedPlayerWebview {
+          min-height: 340px;
+        }
       }
 
       .loadingOverlay {
@@ -1039,6 +1136,17 @@
         </form>
       </section>
 
+      <section class="surface nowPlayingBar hidden" id="nowPlayingBar">
+        <div>
+          <div class="nowPlayingEyebrow">Escuchando ahora</div>
+          <div class="nowPlayingTitle" id="nowPlayingTitle">Nada reproduciendose</div>
+          <div class="nowPlayingMeta" id="nowPlayingMeta">Pulsa Play en un track para cargarlo dentro de Ferrum.</div>
+        </div>
+        <div class="heroActions" style="margin-top:0;">
+          <button class="button" id="nowPlayingTogglePlaybackButton" type="button">Pause</button>
+        </div>
+      </section>
+
       <main class="content">
         <aside class="surface resultsPanel">
           <div class="resultsHeader">
@@ -1115,6 +1223,20 @@
           <button class="button modalClose" id="albumCloseButton" type="button">Close</button>
         </div>
         <div id="albumModalBody"></div>
+        <section class="sectionCard embeddedPlayerSection hidden" id="albumInlinePlayerSection" style="margin-top:16px;">
+          <div class="embeddedPlayerHeader">
+            <div class="sectionTitle" style="font-size:22px;">Embedded player</div>
+            <div class="heroActions" style="margin-top:0;">
+              <button class="button" id="albumInlinePlayerOpenExternalButton" type="button">Open externally</button>
+              <button class="button" id="albumInlinePlayerHideButton" type="button">Hide player</button>
+              <button class="button embeddedPlayerShowButton hidden" id="albumInlinePlayerShowButton" type="button">Show player</button>
+            </div>
+          </div>
+          <div class="embeddedPlayerStatus" id="albumInlinePlayerStatus">Select Play to load YouTube Music inside Ferrum.</div>
+          <div class="embeddedPlayerFrame">
+            <webview class="embeddedPlayerWebview" id="albumInlinePlayer" partition="persist:ferrum-player" src="about:blank"></webview>
+          </div>
+        </section>
       </div>
     </div>
 

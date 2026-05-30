@@ -98,6 +98,10 @@ const elements = {
   resultsEmptyTitle: document.getElementById("resultsEmptyTitle"),
   resultsEmptyDescription: document.getElementById("resultsEmptyDescription"),
   favoritesToggle: document.getElementById("favoritesToggle"),
+  nowPlayingBar: document.getElementById("nowPlayingBar"),
+  nowPlayingTitle: document.getElementById("nowPlayingTitle"),
+  nowPlayingMeta: document.getElementById("nowPlayingMeta"),
+  nowPlayingTogglePlaybackButton: document.getElementById("nowPlayingTogglePlaybackButton"),
   detailEmpty: document.getElementById("detailEmpty"),
   detailContent: document.getElementById("detailContent"),
   historyModal: document.getElementById("historyModal"),
@@ -144,7 +148,8 @@ const state = {
     albumTypeColors: {},
     favoriteBands: []
   },
-  favoriteArtworkLoading: new Set()
+  favoriteArtworkLoading: new Set(),
+  currentPlayback: null
 };
 
 elements.appVersion.textContent = `electron · ${globalThis.ferrum?.version ?? "unknown"}`;
@@ -1150,6 +1155,143 @@ function buildProviderUrl(bandName, albumTitle, trackTitle = "") {
   return `https://music.youtube.com/search?q=${encoded}`;
 }
 
+function syncNowPlaying() {
+  const playback = state.currentPlayback;
+  if (!playback?.url) {
+    elements.nowPlayingBar.classList.add("hidden");
+    elements.nowPlayingTitle.textContent = "Nada reproduciendose";
+    elements.nowPlayingMeta.textContent = "Pulsa Play en un track para cargarlo dentro de Ferrum.";
+    elements.nowPlayingTogglePlaybackButton.textContent = "Pause";
+    elements.nowPlayingTogglePlaybackButton.disabled = true;
+    return;
+  }
+
+  elements.nowPlayingBar.classList.remove("hidden");
+  elements.nowPlayingTitle.textContent = playback.trackTitle || playback.albumTitle || "Seleccion actual";
+  elements.nowPlayingMeta.textContent = [playback.bandName, playback.albumTitle, playback.providerLabel || resolveProviderLabel()].filter(Boolean).join("  •  ");
+  elements.nowPlayingTogglePlaybackButton.textContent = playback.isPaused ? "Play" : "Pause";
+  elements.nowPlayingTogglePlaybackButton.disabled = false;
+}
+
+async function toggleNowPlayingPlayback() {
+  const playback = state.currentPlayback;
+  const webview = document.getElementById("albumInlinePlayer");
+  if (!playback?.url || !webview) {
+    return;
+  }
+
+  try {
+    const result = await webview.executeJavaScript(`
+      (() => {
+        const media = document.querySelector("video, audio");
+        if (!media) {
+          return { ok: false, reason: "no-media" };
+        }
+        if (media.paused) {
+          const playResult = media.play();
+          return Promise.resolve(playResult)
+            .then(() => ({ ok: true, paused: false }))
+            .catch((error) => ({ ok: false, reason: String(error || "play-failed") }));
+        }
+        media.pause();
+        return { ok: true, paused: true };
+      })();
+    `);
+
+    if (!result?.ok) {
+      return;
+    }
+
+    state.currentPlayback = {
+      ...playback,
+      isPaused: Boolean(result.paused)
+    };
+    syncNowPlaying();
+  } catch {
+    // Best-effort control only; providers may not expose a direct media element.
+  }
+}
+
+function setupAlbumInlinePlayer() {
+  const section = document.getElementById("albumInlinePlayerSection");
+  const status = document.getElementById("albumInlinePlayerStatus");
+  const webview = document.getElementById("albumInlinePlayer");
+  const openExternalButton = document.getElementById("albumInlinePlayerOpenExternalButton");
+  const hideButton = document.getElementById("albumInlinePlayerHideButton");
+  const showButton = document.getElementById("albumInlinePlayerShowButton");
+
+  if (!section || !status || !webview || !hideButton || !showButton) {
+    return null;
+  }
+
+  const setCollapsed = (collapsed) => {
+    section.classList.toggle("isCollapsed", collapsed);
+    showButton.classList.toggle("hidden", !collapsed);
+    hideButton.classList.toggle("hidden", collapsed);
+  };
+
+  if (webview.dataset.playerBound !== "true") {
+    webview.dataset.playerBound = "true";
+
+    webview.addEventListener("did-start-loading", () => {
+      const label = webview.dataset.pendingLabel || `current ${resolveProviderLabel()} selection`;
+      status.textContent = `Loading ${label} inside Ferrum...`;
+    });
+
+    webview.addEventListener("did-stop-loading", () => {
+      const label = webview.dataset.pendingLabel || `current ${resolveProviderLabel()} selection`;
+      status.textContent = `${label} ready inside Ferrum.`;
+    });
+
+    webview.addEventListener("did-fail-load", (event) => {
+      if (event.errorCode === -3) {
+        return;
+      }
+      status.textContent = `Embedded ${resolveProviderLabel()} could not load this view.`;
+    });
+
+    openExternalButton?.addEventListener("click", () => {
+      if (state.currentPlayback?.url) {
+        globalThis.ferrum.openExternal(state.currentPlayback.url);
+      }
+    });
+
+    hideButton.addEventListener("click", () => {
+      const label = webview.dataset.pendingLabel || `current ${resolveProviderLabel()} selection`;
+      status.textContent = `${label} keeps playing in the background.`;
+      setCollapsed(true);
+    });
+
+    showButton.addEventListener("click", () => {
+      setCollapsed(false);
+      section.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
+  return { section, status, webview, setCollapsed };
+}
+
+function loadAlbumInlinePlayer(url, label) {
+  const player = setupAlbumInlinePlayer();
+  if (!player) {
+    globalThis.ferrum.openExternal(url);
+    return;
+  }
+
+  player.section.classList.remove("hidden");
+  player.setCollapsed(false);
+  player.webview.dataset.pendingLabel = label;
+  player.status.textContent = `Loading ${label} inside Ferrum...`;
+  if (typeof player.webview.loadURL === "function") {
+    player.webview.loadURL(url);
+  } else if (player.webview.getAttribute("src") !== url) {
+    player.webview.setAttribute("src", url);
+  } else {
+    player.webview.reload();
+  }
+  player.section.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 function renderAlbumModal(album) {
   elements.albumModalTitle.textContent = album.title || "Album";
   elements.albumModalSubtitle.textContent = [album.type, album.release_date, album.label].filter(Boolean).join("  •  ");
@@ -1192,16 +1334,48 @@ function renderAlbumModal(album) {
   const jewelcaseNode = createJewelcaseNode(album, { coverSize: 220, spineWidth: 24, frameInset: 0.972 });
   jewelcaseNode.id = "albumModalArtwork";
   document.getElementById("albumModalArtwork").replaceWith(jewelcaseNode);
+  setupAlbumInlinePlayer();
 
   document.getElementById("albumOpenBrowserButton")?.addEventListener("click", () => globalThis.ferrum.openExternal(album.url));
   document.getElementById("albumProviderButton")?.addEventListener("click", () => {
-    globalThis.ferrum.openExternal(buildProviderUrl(state.selectedBandDetail?.name || "", album.title || ""));
+    const bandName = state.selectedBandDetail?.name || "";
+    const albumTitle = album.title || "";
+    const url = buildProviderUrl(bandName, albumTitle, "");
+    state.currentPlayback = {
+      url,
+      label: `${resolveProviderLabel()} results for ${albumTitle || "album"}`,
+      providerLabel: resolveProviderLabel(),
+      bandName,
+      albumTitle,
+      trackTitle: "",
+      isPaused: false
+    };
+    syncNowPlaying();
+    loadAlbumInlinePlayer(
+      url,
+      state.currentPlayback.label
+    );
   });
 
   for (const button of elements.albumModalBody.querySelectorAll("[data-track-title]")) {
     button.addEventListener("click", () => {
-      globalThis.ferrum.openExternal(
-        buildProviderUrl(state.selectedBandDetail?.name || "", album.title || "", button.dataset.trackTitle || "")
+      const bandName = state.selectedBandDetail?.name || "";
+      const albumTitle = album.title || "";
+      const trackTitle = button.dataset.trackTitle || "";
+      const url = buildProviderUrl(bandName, albumTitle, trackTitle);
+      state.currentPlayback = {
+        url,
+        label: `${resolveProviderLabel()} results for ${trackTitle || "selected track"}`,
+        providerLabel: resolveProviderLabel(),
+        bandName,
+        albumTitle,
+        trackTitle,
+        isPaused: false
+      };
+      syncNowPlaying();
+      loadAlbumInlinePlayer(
+        url,
+        state.currentPlayback.label
       );
     });
   }
@@ -1432,6 +1606,7 @@ async function bootstrap() {
   };
   applyTheme();
   applyFavoriteLogoOpacity();
+  syncNowPlaying();
   setText(elements.backendUrl, `url: ${config.backendUrl}`);
   renderResultsList();
 }
@@ -1464,6 +1639,10 @@ elements.favoritesToggle.addEventListener("click", () => {
   state.resultsScrollTop[state.resultsMode] = elements.resultsBody.scrollTop;
   state.resultsMode = state.resultsMode === "favorites" ? "search" : "favorites";
   renderResultsList();
+});
+
+elements.nowPlayingTogglePlaybackButton.addEventListener("click", async () => {
+  await toggleNowPlayingPlayback();
 });
 
 elements.resultsBody.addEventListener("scroll", () => {
