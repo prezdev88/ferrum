@@ -628,8 +628,9 @@
       .discographyShelf {
         min-height: 0;
         border-radius: 18px;
-        border: 1px solid var(--line);
-        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid transparent;
+        background: transparent;
+        box-shadow: none;
       }
 
       .discographyShelf {
@@ -716,19 +717,20 @@
         align-items: start;
         padding: 13px;
         border-radius: 18px;
-        border: 1px solid var(--line);
-        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid transparent;
+        background: transparent;
+        box-shadow: none;
         cursor: pointer;
         min-height: 100%;
       }
 
       .albumRow:hover {
-        border-color: var(--line-strong);
+        border-color: transparent;
       }
 
       .albumRow.isExpanded {
-        border-color: var(--line-strong);
-        background: rgba(255, 255, 255, 0.06);
+        border-color: transparent;
+        background: transparent;
       }
 
       .albumRow[disabled] {
