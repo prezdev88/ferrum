@@ -46,6 +46,8 @@ function loadSettings() {
   const payload = readJsonFile(getPreferencesPath(), {});
   const rawColors = payload && typeof payload === "object" ? payload.album_type_colors : {};
   const albumTypeColors = {};
+  const hasShowAlbumInfoInBandView =
+    payload && typeof payload === "object" && typeof payload.show_album_info_in_band_view === "boolean";
 
   if (rawColors && typeof rawColors === "object") {
     for (const [albumType, color] of Object.entries(rawColors)) {
@@ -57,19 +59,41 @@ function loadSettings() {
     }
   }
 
-  return {
+  const settings = {
     themeMode: typeof payload.theme_mode === "string" ? payload.theme_mode : "black",
     musicProvider: typeof payload.music_provider === "string" ? payload.music_provider : "youtube_music",
     favoriteLogoOpacity: Number.isFinite(Number(payload.favorite_logo_opacity))
       ? Math.max(0, Math.min(100, Math.round(Number(payload.favorite_logo_opacity))))
       : 0,
     favoriteImageOnly: Boolean(payload.favorite_image_only),
+    showAlbumInfoInBandView: hasShowAlbumInfoInBandView
+      ? Boolean(payload.show_album_info_in_band_view)
+      : true,
     albumGridSize: Number.isFinite(Number(payload.album_grid_size))
       ? Math.max(140, Math.min(320, Math.round(Number(payload.album_grid_size))))
       : 190,
     albumTypeColors,
     favoriteBands: loadFavorites()
   };
+
+  if (!hasShowAlbumInfoInBandView) {
+    writeJsonFile(getPreferencesPath(), {
+      ...payload,
+      theme_mode: settings.themeMode,
+      music_provider: settings.musicProvider,
+      favorite_logo_opacity: settings.favoriteLogoOpacity,
+      favorite_image_only: settings.favoriteImageOnly,
+      show_album_info_in_band_view: settings.showAlbumInfoInBandView,
+      album_grid_size: settings.albumGridSize,
+      album_type_colors: Object.fromEntries(
+        Object.entries(albumTypeColors).sort((a, b) =>
+          a[0].localeCompare(b[0], undefined, { sensitivity: "base" })
+        )
+      )
+    });
+  }
+
+  return settings;
 }
 
 function saveSettings(settings) {
@@ -95,6 +119,8 @@ function saveSettings(settings) {
       ? Math.max(0, Math.min(100, Math.round(Number(nextSettings.favoriteLogoOpacity))))
       : 0,
     favorite_image_only: Boolean(nextSettings.favoriteImageOnly),
+    show_album_info_in_band_view:
+      nextSettings.showAlbumInfoInBandView !== false,
     album_grid_size: Number.isFinite(Number(nextSettings.albumGridSize))
       ? Math.max(140, Math.min(320, Math.round(Number(nextSettings.albumGridSize))))
       : 190,

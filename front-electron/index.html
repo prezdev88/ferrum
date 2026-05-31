@@ -713,6 +713,13 @@
         padding-right: 8px;
       }
 
+      .albumList.isArtworkOnlyGallery {
+        gap: 10px;
+        align-items: start;
+        padding-top: 0;
+        padding-bottom: 12px;
+      }
+
       .albumRow {
         width: 100%;
         text-align: left;
@@ -728,6 +735,16 @@
         box-shadow: none;
         cursor: pointer;
         min-height: 100%;
+      }
+
+      .albumRow.isArtworkOnly {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0;
+        padding: 0;
+        min-height: auto;
+        height: auto;
       }
 
       .albumRow:hover {
@@ -747,6 +764,11 @@
       .albumArtworkJewelcase {
         justify-self: center;
         width: 100%;
+      }
+
+      .albumRow.isArtworkOnly .albumArtworkJewelcase {
+        width: 100%;
+        max-width: 100%;
       }
 
       .albumTitle {
@@ -1391,6 +1413,20 @@
             <input
               class="settingsCheckbox"
               id="favoriteImageOnlyCheckbox"
+              type="checkbox"
+            />
+          </div>
+          <div class="settingsRow">
+            <div class="settingsLabelBlock">
+              <div class="settingsLabel">Show album info</div>
+              <div class="settingsSubtle">
+                Show the title, year and release type under albums in the artist
+                view.
+              </div>
+            </div>
+            <input
+              class="settingsCheckbox"
+              id="showAlbumInfoInBandViewCheckbox"
               type="checkbox"
             />
           </div>

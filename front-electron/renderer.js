@@ -116,6 +116,9 @@ const elements = {
   favoriteImageOnlyCheckbox: document.getElementById(
     "favoriteImageOnlyCheckbox",
   ),
+  showAlbumInfoInBandViewCheckbox: document.getElementById(
+    "showAlbumInfoInBandViewCheckbox",
+  ),
   settingsColorList: document.getElementById("settingsColorList"),
   taskLoadingOverlay: document.getElementById("taskLoadingOverlay"),
   taskLoadingTitle: document.getElementById("taskLoadingTitle"),
@@ -142,6 +145,7 @@ const state = {
     musicProvider: "youtube_music",
     favoriteLogoOpacity: 0,
     favoriteImageOnly: false,
+    showAlbumInfoInBandView: true,
     albumGridSize: 190,
     albumTypeColors: {},
     favoriteBands: [],
@@ -394,6 +398,7 @@ function persistSettings() {
     musicProvider: state.settings.musicProvider,
     favoriteLogoOpacity: state.settings.favoriteLogoOpacity,
     favoriteImageOnly: state.settings.favoriteImageOnly,
+    showAlbumInfoInBandView: state.settings.showAlbumInfoInBandView,
     albumGridSize: state.settings.albumGridSize,
     albumTypeColors: state.settings.albumTypeColors,
     favoriteBands: state.settings.favoriteBands,
@@ -1247,6 +1252,10 @@ function getFilteredDiscographyAlbums(detail) {
 function renderDiscography(detail) {
   const list = document.getElementById("discographyList");
   const previousScrollTop = list.scrollTop;
+  list.classList.toggle(
+    "isArtworkOnlyGallery",
+    state.settings.showAlbumInfoInBandView === false,
+  );
   list.replaceChildren();
   const albums = getFilteredDiscographyAlbums(detail);
 
@@ -1277,6 +1286,9 @@ function renderDiscography(detail) {
     );
     button.type = "button";
     button.className = "albumRow";
+    if (state.settings.showAlbumInfoInBandView === false) {
+      button.classList.add("isArtworkOnly");
+    }
     if (state.expandedAlbumUrl === album.url) {
       button.classList.add("isExpanded");
     }
@@ -1285,6 +1297,9 @@ function renderDiscography(detail) {
     }
     button.innerHTML = `
       <div id="album-art-${Math.random().toString(36).slice(2)}"></div>
+      ${
+        state.settings.showAlbumInfoInBandView !== false
+          ? `
       <div class="albumBody">
         <div class="albumTitle">${escapeHtml(album.title || "Untitled release")}</div>
         <div class="albumMeta">
@@ -1293,6 +1308,9 @@ function renderDiscography(detail) {
           <span class="albumType albumTypeBadge" data-album-type-badge="${escapeHtml(resolveAlbumTypeName(album.type))}">${escapeHtml(album.type || "Other")}</span>
         </div>
       </div>
+      `
+          : ""
+      }
       <div class="arrow"></div>
     `;
     const artworkSlot = button.firstElementChild;
@@ -1909,6 +1927,10 @@ function openSettingsModal() {
       state.settings.favoriteImageOnly,
     );
   }
+  if (elements.showAlbumInfoInBandViewCheckbox) {
+    elements.showAlbumInfoInBandViewCheckbox.checked =
+      state.settings.showAlbumInfoInBandView !== false;
+  }
   renderSettingsColorRows();
   elements.settingsModal.classList.remove("hidden");
 }
@@ -1975,6 +1997,10 @@ async function bootstrap() {
     favoriteImageOnly: Boolean(
       settings?.favoriteImageOnly ?? settings?.favorite_image_only ?? false,
     ),
+    showAlbumInfoInBandView:
+      settings?.showAlbumInfoInBandView ??
+      settings?.show_album_info_in_band_view ??
+      true,
     albumGridSize: clampAlbumGridSize(
       settings?.albumGridSize ?? settings?.album_grid_size ?? 190,
     ),
@@ -1991,6 +2017,12 @@ async function bootstrap() {
   applyTheme();
   applyFavoriteLogoOpacity();
   applyAlbumGridSize();
+  if (
+    settings?.showAlbumInfoInBandView === undefined &&
+    settings?.show_album_info_in_band_view === undefined
+  ) {
+    persistSettings();
+  }
   setText(elements.backendUrl, `url: ${config.backendUrl}`);
   renderResultsList();
 }
@@ -2163,6 +2195,15 @@ elements.favoriteImageOnlyCheckbox?.addEventListener("change", () => {
   persistSettings();
   if (state.resultsMode === "favorites") {
     renderResultsList();
+  }
+});
+
+elements.showAlbumInfoInBandViewCheckbox?.addEventListener("change", () => {
+  state.settings.showAlbumInfoInBandView =
+    elements.showAlbumInfoInBandViewCheckbox.checked;
+  persistSettings();
+  if (state.selectedBandDetail) {
+    renderDiscography(state.selectedBandDetail);
   }
 });
 
