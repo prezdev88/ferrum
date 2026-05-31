@@ -612,32 +612,29 @@
         display: grid;
         grid-template-rows: auto 1fr;
         overflow: hidden;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
       }
 
       .discographyWorkspace {
         min-height: 0;
         display: block;
         width: 100%;
+        max-height: 70vh;
       }
 
-      .albumShelf,
-      .albumInspector {
+      .discographyShelf {
         min-height: 0;
         border-radius: 18px;
         border: 1px solid var(--line);
         background: rgba(255, 255, 255, 0.03);
       }
 
-      .albumShelf {
+      .discographyShelf {
         padding: 12px;
-        overflow-y: auto;
-        max-height: 70vh;
-        width: 100%;
-      }
-
-      .albumInspector {
-        overflow: auto;
-        padding: 14px;
+        overflow: hidden;
       }
 
       .sectionHeader {
@@ -702,12 +699,11 @@
         align-content: start;
         gap: 12px;
         width: 100%;
-        overflow-y: auto;
-        max-height: 70vh;
         min-height: 0;
-        padding-right: 4px;
-        max-height: 100vh;
+        max-height: calc(70vh - 24px);
         overflow-y: auto;
+        padding: 4px;
+        padding-right: 8px;
       }
 
       .albumRow {
@@ -1123,11 +1119,15 @@
         }
 
         .discographyWorkspace {
-          grid-template-columns: 1fr;
+          max-height: none;
         }
 
         .albumInspectorHero {
           grid-template-columns: 1fr;
+        }
+
+        .albumList {
+          max-height: none;
         }
       }
     </style>

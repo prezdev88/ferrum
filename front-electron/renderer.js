@@ -1122,7 +1122,7 @@ function renderBandDetail(detail) {
     <section class="sectionCard discographySection">
       <div class="albumCoverPrefetchProgress hidden" id="albumCoverPrefetchProgress"></div>
       <div class="discographyWorkspace">
-        <div class="albumShelf">
+        <div class="discographyShelf">
           <div class="albumList" id="discographyList"></div>
         </div>
       </div>
@@ -1200,7 +1200,6 @@ function getFilteredDiscographyAlbums(detail) {
 
 function renderDiscography(detail) {
   const list = document.getElementById("discographyList");
-  // Soporte para scroll aunque no haya .albumShelf
   const previousScrollTop = list.scrollTop;
   list.replaceChildren();
   const albums = getFilteredDiscographyAlbums(detail);
@@ -1221,7 +1220,6 @@ function renderDiscography(detail) {
       ? "No releases for this filter. Try another discography type."
       : "No discography loaded. This band page did not expose a release table.";
     list.appendChild(empty);
-    renderAlbumInspector();
     return;
   }
 
@@ -1257,7 +1255,9 @@ function renderDiscography(detail) {
     jewelcaseNode.classList.add("albumArtworkJewelcase");
     artworkSlot.replaceWith(jewelcaseNode);
     if (album.url) {
-      button.addEventListener("click", () => openAlbum(album));
+      button.addEventListener("click", () => {
+        void openAlbum(album);
+      });
     }
     const badge = button.querySelector("[data-album-type-badge]");
     if (badge) {
@@ -1416,7 +1416,10 @@ async function openAlbum(album) {
     return;
   }
 
-  // Show loading in modal
+  state.expandedAlbumUrl = album.url;
+  state.expandedAlbumLoadingUrl = album.url;
+  state.expandedAlbumError = null;
+  renderDiscography(state.selectedBandDetail);
   elements.albumModal.classList.remove("hidden");
   elements.albumModalTitle.textContent = album.title || "Album";
   elements.albumModalSubtitle.textContent = album.year || "";
@@ -1424,15 +1427,30 @@ async function openAlbum(album) {
 
   try {
     const detail = await fetchAlbumDetail(album);
-    // Render album details in modal
+    if (state.expandedAlbumUrl !== album.url) {
+      return;
+    }
+    state.expandedAlbumLoadingUrl = null;
+    state.expandedAlbumError = null;
+    renderDiscography(state.selectedBandDetail);
     if (detail) {
       const panel = buildExpandedAlbumPanel(detail);
       elements.albumModalBody.innerHTML = "";
       elements.albumModalBody.appendChild(panel);
     } else {
+      state.expandedAlbumError = { url: album.url, message: "No details found." };
       elements.albumModalBody.innerHTML = `<div class="albumInspectorState"><div><div class="sectionTitle">Album</div><div class="resultMeta">No details found.</div></div></div>`;
     }
   } catch (error) {
+    if (state.expandedAlbumUrl !== album.url) {
+      return;
+    }
+    state.expandedAlbumLoadingUrl = null;
+    state.expandedAlbumError = {
+      url: album.url,
+      message: error?.message || "Failed to load album",
+    };
+    renderDiscography(state.selectedBandDetail);
     elements.albumModalBody.innerHTML = `<div class="albumInspectorState"><div><div class="sectionTitle">Error</div><div class="resultMeta">${escapeHtml(error?.message || "Failed to load album")}</div></div></div>`;
   }
 }
