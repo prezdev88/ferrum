@@ -974,9 +974,17 @@ function createCompactDiscNode(size) {
   return discStage;
 }
 
+function resolveJewelcaseSpineWidth(coverSize) {
+  return Math.max(14, Math.round(coverSize * 0.17));
+}
+
+function resolveModalJewelcaseSpineWidth(coverSize) {
+  return Math.max(16, Math.round(coverSize * 0.105));
+}
+
 function createJewelcaseNode(album, options = {}) {
   const coverSize = options.coverSize ?? 340;
-  const spineWidth = options.spineWidth ?? 32;
+  const spineWidth = options.spineWidth ?? resolveJewelcaseSpineWidth(coverSize);
   const frameInset = options.frameInset ?? 0.97;
   const fluidWidth = Boolean(options.fluidWidth);
   const totalWidth = coverSize + spineWidth;
@@ -1316,7 +1324,7 @@ function renderDiscography(detail) {
     const artworkSlot = button.firstElementChild;
     const jewelcaseNode = createJewelcaseNode(album, {
       coverSize: cardCoverSize,
-      spineWidth: Math.max(12, Math.round(cardCoverSize * 0.145)),
+      spineWidth: resolveJewelcaseSpineWidth(cardCoverSize),
       frameInset: 0.972,
       fluidWidth: true,
     });
@@ -1672,7 +1680,7 @@ function buildExpandedAlbumPanel(albumSummary) {
   const artworkSlot = panel.querySelector("[id^='album-inline-art-']");
   const jewelcaseNode = createJewelcaseNode(album, {
     coverSize: 180,
-    spineWidth: 20,
+    spineWidth: resolveModalJewelcaseSpineWidth(180),
     frameInset: 0.972,
   });
   artworkSlot?.replaceWith(jewelcaseNode);
