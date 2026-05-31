@@ -81,10 +81,7 @@
         background: var(--bg);
         color: var(--text);
         font-family:
-          "Segoe UI Variable",
-          "SF Pro Display",
-          "Noto Sans",
-          sans-serif;
+          "Segoe UI Variable", "SF Pro Display", "Noto Sans", sans-serif;
       }
 
       button,
@@ -619,9 +616,8 @@
 
       .discographyWorkspace {
         min-height: 0;
-        display: grid;
-        grid-template-columns: minmax(320px, 1.15fr) minmax(340px, 0.9fr);
-        gap: 16px;
+        display: block;
+        width: 100%;
       }
 
       .albumShelf,
@@ -634,7 +630,9 @@
 
       .albumShelf {
         padding: 12px;
-        overflow: auto;
+        overflow-y: auto;
+        max-height: 70vh;
+        width: 100%;
       }
 
       .albumInspector {
@@ -676,7 +674,11 @@
       .albumCoverPrefetchBar > div {
         height: 100%;
         border-radius: inherit;
-        background: linear-gradient(90deg, var(--accent), rgba(255, 255, 255, 0.78));
+        background: linear-gradient(
+          90deg,
+          var(--accent),
+          rgba(255, 255, 255, 0.78)
+        );
         transition: width 180ms ease;
       }
 
@@ -699,8 +701,13 @@
         grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
         align-content: start;
         gap: 12px;
+        width: 100%;
+        overflow-y: auto;
+        max-height: 70vh;
         min-height: 0;
         padding-right: 4px;
+        max-height: 100vh;
+        overflow-y: auto;
       }
 
       .albumRow {
@@ -1075,7 +1082,12 @@
       .loadingBar > div {
         width: 35%;
         height: 100%;
-        background: linear-gradient(90deg, transparent, var(--accent), transparent);
+        background: linear-gradient(
+          90deg,
+          transparent,
+          var(--accent),
+          transparent
+        );
         animation: slide 1.1s linear infinite;
       }
 
@@ -1125,18 +1137,40 @@
       <section class="surface searchSurface">
         <form class="searchForm" id="searchForm" autocomplete="off">
           <div class="menuWrap">
-            <button class="button iconButton" id="menuButton" type="button" aria-label="Menu" aria-expanded="false">
+            <button
+              class="button iconButton"
+              id="menuButton"
+              type="button"
+              aria-label="Menu"
+              aria-expanded="false"
+            >
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M4 7h16v2H4V7zm0 4h16v2H4v-2zm0 4h16v2H4v-2z"></path>
               </svg>
             </button>
             <div class="dropdownMenu hidden" id="appMenu">
-              <button class="dropdownItem" id="menuRefreshBandButton" type="button">Refresh selected band</button>
+              <button
+                class="dropdownItem"
+                id="menuRefreshBandButton"
+                type="button"
+              >
+                Refresh selected band
+              </button>
               <div class="dropdownDivider"></div>
-              <button class="dropdownItem" id="menuSettingsButton" type="button">Settings</button>
-              <button class="dropdownItem" id="menuHistoryButton" type="button">View search history</button>
+              <button
+                class="dropdownItem"
+                id="menuSettingsButton"
+                type="button"
+              >
+                Settings
+              </button>
+              <button class="dropdownItem" id="menuHistoryButton" type="button">
+                View search history
+              </button>
               <div class="dropdownDivider"></div>
-              <button class="dropdownItem" id="menuQuitButton" type="button">Quit</button>
+              <button class="dropdownItem" id="menuQuitButton" type="button">
+                Quit
+              </button>
             </div>
           </div>
           <input
@@ -1146,7 +1180,12 @@
             placeholder="Try: Bathory, funeral doom, Chile, cosmic themes..."
             spellcheck="false"
           />
-          <select class="searchSelect" id="searchType" name="searchType" title="Search type">
+          <select
+            class="searchSelect"
+            id="searchType"
+            name="searchType"
+            title="Search type"
+          >
             <option value="BAND_NAME">Band name</option>
             <option value="MUSIC_GENRE">Music genre</option>
             <option value="THEMES">Themes</option>
@@ -1157,7 +1196,14 @@
             <option value="USER_PROFILE">User profile</option>
             <option value="GOOGLE">Google</option>
           </select>
-          <button class="button primary" id="searchButton" type="submit" disabled>Search</button>
+          <button
+            class="button primary"
+            id="searchButton"
+            type="submit"
+            disabled
+          >
+            Search
+          </button>
         </form>
       </section>
 
@@ -1167,15 +1213,20 @@
             <div class="resultsTitle" id="resultsHeading">Results</div>
             <div class="resultsCount" id="resultsCount">No results yet</div>
             <div class="spacer"></div>
-            <button class="tabButton" id="favoritesToggle" type="button">Favorites</button>
+            <button class="tabButton" id="favoritesToggle" type="button">
+              Favorites
+            </button>
           </div>
           <div class="resultsBody" id="resultsBody">
             <ul class="resultsList hidden" id="resultsList"></ul>
             <div class="statusCard" id="resultsEmpty">
               <div>
-                <div class="statusTitle" id="resultsEmptyTitle">Start with a band, genre or theme</div>
+                <div class="statusTitle" id="resultsEmptyTitle">
+                  Start with a band, genre or theme
+                </div>
                 <div class="statusDescription" id="resultsEmptyDescription">
-                  Search results will appear here and load band details on selection.
+                  Search results will appear here and load band details on
+                  selection.
                 </div>
               </div>
             </div>
@@ -1188,7 +1239,8 @@
               <div>
                 <div class="statusTitle">Band details live here</div>
                 <div class="statusDescription">
-                  Pick a result to inspect line-up context, metadata and discography.
+                  Pick a result to inspect line-up context, metadata and
+                  discography.
                 </div>
               </div>
             </div>
@@ -1200,7 +1252,14 @@
 
     <div class="loadingOverlay" id="loadingOverlay">
       <div class="surface loadingCard">
-        <div style="display:flex; align-items:baseline; justify-content:space-between; gap:12px;">
+        <div
+          style="
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 12px;
+          "
+        >
           <div>
             <div class="loadingTitle">Ferrum</div>
             <div class="loadingSubtitle">Electron frontend bootstrap</div>
@@ -1212,7 +1271,9 @@
           <div class="miniPill" id="backendState">backend: unknown</div>
           <div class="miniPill" id="backendUrl">url: -</div>
         </div>
-        <div class="loadingBar" id="loadingBar" aria-hidden="true"><div></div></div>
+        <div class="loadingBar" id="loadingBar" aria-hidden="true">
+          <div></div>
+        </div>
       </div>
     </div>
 
@@ -1220,9 +1281,17 @@
       <div class="surface modalCard">
         <div class="modalHeader">
           <div class="modalTitle">Search history</div>
-          <button class="button modalClose" id="historyCloseButton" type="button">Close</button>
+          <button
+            class="button modalClose"
+            id="historyCloseButton"
+            type="button"
+          >
+            Close
+          </button>
         </div>
-        <div class="resultsCount" style="margin-bottom:12px;">Recent searches</div>
+        <div class="resultsCount" style="margin-bottom: 12px">
+          Recent searches
+        </div>
         <ul class="resultsList" id="historyList"></ul>
       </div>
     </div>
@@ -1234,7 +1303,9 @@
             <div class="modalTitle" id="albumModalTitle">Album</div>
             <div class="resultsCount" id="albumModalSubtitle"></div>
           </div>
-          <button class="button modalClose" id="albumCloseButton" type="button">Close</button>
+          <button class="button modalClose" id="albumCloseButton" type="button">
+            Close
+          </button>
         </div>
         <div id="albumModalBody"></div>
       </div>
@@ -1247,7 +1318,13 @@
             <div class="modalTitle">Settings</div>
             <div class="resultsCount">Preferences</div>
           </div>
-          <button class="button modalClose" id="settingsCloseButton" type="button">Close</button>
+          <button
+            class="button modalClose"
+            id="settingsCloseButton"
+            type="button"
+          >
+            Close
+          </button>
         </div>
         <div class="settingsContent">
           <div class="settingsRow">
@@ -1269,24 +1346,42 @@
           <div class="settingsRow">
             <div class="settingsLabelBlock">
               <div class="settingsLabel">Favorite logo opacity</div>
-              <div class="settingsSubtle">Set to 0% if you do not want logos in favorite items.</div>
+              <div class="settingsSubtle">
+                Set to 0% if you do not want logos in favorite items.
+              </div>
             </div>
             <div class="settingsInlineControl">
-              <input class="settingsSlider" id="favoriteLogoOpacityRange" type="range" min="0" max="100" step="1" />
+              <input
+                class="settingsSlider"
+                id="favoriteLogoOpacityRange"
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+              />
               <div class="settingsValue" id="favoriteLogoOpacityValue">0%</div>
             </div>
           </div>
           <div class="settingsRow">
             <div class="settingsLabelBlock">
               <div class="settingsLabel">Favorites image only</div>
-              <div class="settingsSubtle">Show only the band logo/image in favorite items when available.</div>
+              <div class="settingsSubtle">
+                Show only the band logo/image in favorite items when available.
+              </div>
             </div>
-            <input class="settingsCheckbox" id="favoriteImageOnlyCheckbox" type="checkbox" />
+            <input
+              class="settingsCheckbox"
+              id="favoriteImageOnlyCheckbox"
+              type="checkbox"
+            />
           </div>
           <div>
-            <div class="settingsTitle" style="font-size:18px;">Album type colors</div>
-            <div class="settingsSubtle" style="margin-top:8px;">
-              Colors are created automatically the first time a release type appears.
+            <div class="settingsTitle" style="font-size: 18px">
+              Album type colors
+            </div>
+            <div class="settingsSubtle" style="margin-top: 8px">
+              Colors are created automatically the first time a release type
+              appears.
             </div>
           </div>
           <div class="settingsColorList" id="settingsColorList"></div>
@@ -1299,7 +1394,9 @@
         <div class="taskLoadingInner">
           <div class="spinner" aria-hidden="true"></div>
           <div class="taskLoadingTitle" id="taskLoadingTitle">Loading</div>
-          <div class="taskLoadingMessage" id="taskLoadingMessage">Please wait...</div>
+          <div class="taskLoadingMessage" id="taskLoadingMessage">
+            Please wait...
+          </div>
         </div>
       </div>
     </div>

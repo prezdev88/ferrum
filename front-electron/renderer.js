@@ -7,7 +7,7 @@ const SEARCH_TYPE_LABELS = {
   LABEL: "Label",
   ARTIST: "Artist",
   USER_PROFILE: "User profile",
-  GOOGLE: "Google"
+  GOOGLE: "Google",
 };
 
 const THEME_MODES = ["system", "light", "dark", "black"];
@@ -69,7 +69,7 @@ const COUNTRY_TO_ISO = {
   usa: "US",
   uruguay: "UY",
   venezuela: "VE",
-  wales: "GB"
+  wales: "GB",
 };
 
 const elements = {
@@ -114,11 +114,13 @@ const elements = {
   providerSelect: document.getElementById("providerSelect"),
   favoriteLogoOpacityRange: document.getElementById("favoriteLogoOpacityRange"),
   favoriteLogoOpacityValue: document.getElementById("favoriteLogoOpacityValue"),
-  favoriteImageOnlyCheckbox: document.getElementById("favoriteImageOnlyCheckbox"),
+  favoriteImageOnlyCheckbox: document.getElementById(
+    "favoriteImageOnlyCheckbox",
+  ),
   settingsColorList: document.getElementById("settingsColorList"),
   taskLoadingOverlay: document.getElementById("taskLoadingOverlay"),
   taskLoadingTitle: document.getElementById("taskLoadingTitle"),
-  taskLoadingMessage: document.getElementById("taskLoadingMessage")
+  taskLoadingMessage: document.getElementById("taskLoadingMessage"),
 };
 
 const state = {
@@ -127,7 +129,7 @@ const state = {
   resultsMode: "search",
   resultsScrollTop: {
     search: 0,
-    favorites: 0
+    favorites: 0,
   },
   isSearching: false,
   isLoadingBand: false,
@@ -142,7 +144,7 @@ const state = {
     favoriteLogoOpacity: 0,
     favoriteImageOnly: false,
     albumTypeColors: {},
-    favoriteBands: []
+    favoriteBands: [],
   },
   favoriteArtworkLoading: new Set(),
   expandedAlbumUrl: null,
@@ -157,10 +159,10 @@ const state = {
     active: false,
     total: 0,
     completed: 0,
-    currentTitle: ""
+    currentTitle: "",
   },
   taskLoadingTimer: null,
-  detailLoadingTimer: null
+  detailLoadingTimer: null,
 };
 
 elements.appVersion.textContent = `electron · ${globalThis.ferrum?.version ?? "unknown"}`;
@@ -172,12 +174,14 @@ function normalizeBandSummary(item) {
     genre: String(item?.genre ?? "").trim(),
     status: String(item?.status ?? "").trim(),
     profile_url: String(item?.profile_url ?? item?.profileUrl ?? "").trim(),
-    image_url: String(item?.image_url ?? item?.imageUrl ?? "").trim()
+    image_url: String(item?.image_url ?? item?.imageUrl ?? "").trim(),
   };
 }
 
 function countryToFlag(country) {
-  const normalizedCountry = String(country ?? "").trim().toLowerCase();
+  const normalizedCountry = String(country ?? "")
+    .trim()
+    .toLowerCase();
   if (!normalizedCountry) {
     return "";
   }
@@ -198,7 +202,7 @@ function normalizeAlbumEntry(item) {
     type: String(item?.type ?? "").trim(),
     year: String(item?.year ?? "").trim(),
     url: String(item?.url ?? "").trim(),
-    image_url: String(item?.image_url ?? item?.imageUrl ?? "").trim()
+    image_url: String(item?.image_url ?? item?.imageUrl ?? "").trim(),
   };
 }
 
@@ -212,10 +216,14 @@ function normalizeBandDetail(item) {
     formed_in: String(item?.formed_in ?? item?.formedIn ?? "").trim(),
     years_active: String(item?.years_active ?? item?.yearsActive ?? "").trim(),
     genre: String(item?.genre ?? "").trim(),
-    lyrical_themes: String(item?.lyrical_themes ?? item?.lyricalThemes ?? "").trim(),
+    lyrical_themes: String(
+      item?.lyrical_themes ?? item?.lyricalThemes ?? "",
+    ).trim(),
     label: String(item?.label ?? "").trim(),
     profile_url: String(item?.profile_url ?? item?.profileUrl ?? "").trim(),
-    discography: Array.isArray(item?.discography) ? item.discography.map(normalizeAlbumEntry) : []
+    discography: Array.isArray(item?.discography)
+      ? item.discography.map(normalizeAlbumEntry)
+      : [],
   };
 }
 
@@ -231,21 +239,23 @@ function normalizeAlbumDetail(item) {
       ? item.tracks.map((track) => ({
           number: String(track?.number ?? "").trim(),
           title: String(track?.title ?? "").trim(),
-          duration: String(track?.duration ?? "").trim()
+          duration: String(track?.duration ?? "").trim(),
         }))
-      : []
+      : [],
   };
 }
 
 function normalizeSearchHistoryEntry(item) {
   return {
     query: String(item?.query ?? "").trim(),
-    search_type: String(item?.search_type ?? item?.searchType ?? "").trim()
+    search_type: String(item?.search_type ?? item?.searchType ?? "").trim(),
   };
 }
 
 function normalizeHexColor(value) {
-  const normalized = String(value ?? "").trim().toUpperCase();
+  const normalized = String(value ?? "")
+    .trim()
+    .toUpperCase();
   return /^#[0-9A-F]{6}$/.test(normalized) ? normalized : null;
 }
 
@@ -283,7 +293,11 @@ function generateRandomColor() {
 
   const match = value - chroma;
   return `#${[red, green, blue]
-    .map((channel) => Math.round((channel + match) * 255).toString(16).padStart(2, "0"))
+    .map((channel) =>
+      Math.round((channel + match) * 255)
+        .toString(16)
+        .padStart(2, "0"),
+    )
     .join("")
     .toUpperCase()}`;
 }
@@ -293,7 +307,7 @@ function hexToRgb(color) {
   return {
     red: Number.parseInt(normalized.slice(0, 2), 16),
     green: Number.parseInt(normalized.slice(2, 4), 16),
-    blue: Number.parseInt(normalized.slice(4, 6), 16)
+    blue: Number.parseInt(normalized.slice(4, 6), 16),
   };
 }
 
@@ -322,14 +336,20 @@ function resolveEffectiveThemeMode(themeMode) {
   if (themeMode !== "system") {
     return themeMode;
   }
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
 }
 
 function applyTheme() {
   const effectiveTheme = resolveEffectiveThemeMode(state.settings.themeMode);
   document.body.classList.remove("ferrum-light", "ferrum-dark", "ferrum-black");
   document.body.classList.add(
-    effectiveTheme === "black" ? "ferrum-black" : effectiveTheme === "dark" ? "ferrum-dark" : "ferrum-light"
+    effectiveTheme === "black"
+      ? "ferrum-black"
+      : effectiveTheme === "dark"
+        ? "ferrum-dark"
+        : "ferrum-light",
   );
 }
 
@@ -342,7 +362,7 @@ function getAlbumTypeBadgeStyle(albumType) {
     return {
       background: rgba(color, 0.16),
       color: mixColor(color, "#000000", 0.38),
-      borderColor: rgba(color, 0.28)
+      borderColor: rgba(color, 0.28),
     };
   }
 
@@ -350,14 +370,14 @@ function getAlbumTypeBadgeStyle(albumType) {
     return {
       background: rgba(color, 0.22),
       color: mixColor(color, "#FFFFFF", 0.58),
-      borderColor: rgba(color, 0.34)
+      borderColor: rgba(color, 0.34),
     };
   }
 
   return {
     background: rgba(color, 0.2),
     color: mixColor(color, "#FFFFFF", 0.64),
-    borderColor: rgba(color, 0.32)
+    borderColor: rgba(color, 0.32),
   };
 }
 
@@ -375,7 +395,7 @@ function persistSettings() {
     favoriteLogoOpacity: state.settings.favoriteLogoOpacity,
     favoriteImageOnly: state.settings.favoriteImageOnly,
     albumTypeColors: state.settings.albumTypeColors,
-    favoriteBands: state.settings.favoriteBands
+    favoriteBands: state.settings.favoriteBands,
   });
 }
 
@@ -390,7 +410,10 @@ function clampFavoriteLogoOpacity(value) {
 function applyFavoriteLogoOpacity() {
   const opacity = clampFavoriteLogoOpacity(state.settings.favoriteLogoOpacity);
   state.settings.favoriteLogoOpacity = opacity;
-  document.documentElement.style.setProperty("--favorite-logo-opacity", String(opacity / 100));
+  document.documentElement.style.setProperty(
+    "--favorite-logo-opacity",
+    String(opacity / 100),
+  );
   if (elements.favoriteLogoOpacityRange) {
     elements.favoriteLogoOpacityRange.value = String(opacity);
   }
@@ -401,7 +424,9 @@ function applyFavoriteLogoOpacity() {
 
 function ensureAlbumTypeColor(albumType, options = { persist: true }) {
   const resolvedAlbumType = resolveAlbumTypeName(albumType);
-  for (const [currentAlbumType, color] of Object.entries(state.settings.albumTypeColors)) {
+  for (const [currentAlbumType, color] of Object.entries(
+    state.settings.albumTypeColors,
+  )) {
     if (currentAlbumType.toLowerCase() === resolvedAlbumType.toLowerCase()) {
       return color;
     }
@@ -435,17 +460,25 @@ function escapeHtml(value) {
 }
 
 function isFavoriteBand(profileUrl) {
-  return state.settings.favoriteBands.some((item) => item.profile_url === profileUrl);
+  return state.settings.favoriteBands.some(
+    (item) => item.profile_url === profileUrl,
+  );
 }
 
 function rememberSearchHistoryEntry(query, searchType) {
-  const normalizedQuery = String(query ?? "").trim().toLowerCase();
+  const normalizedQuery = String(query ?? "")
+    .trim()
+    .toLowerCase();
   if (!normalizedQuery) {
     return;
   }
 
   const nextHistory = state.searchHistory.filter(
-    (entry) => !(entry.query.toLowerCase() === normalizedQuery && entry.search_type === searchType)
+    (entry) =>
+      !(
+        entry.query.toLowerCase() === normalizedQuery &&
+        entry.search_type === searchType
+      ),
   );
   nextHistory.unshift({ query: normalizedQuery, search_type: searchType });
   state.searchHistory = nextHistory.slice(0, 100);
@@ -454,7 +487,8 @@ function rememberSearchHistoryEntry(query, searchType) {
 function setBackendReady(isReady) {
   const wasReady = state.backendReady;
   state.backendReady = isReady;
-  elements.searchButton.disabled = !isReady || !elements.queryInput.value.trim() || state.isSearching;
+  elements.searchButton.disabled =
+    !isReady || !elements.queryInput.value.trim() || state.isSearching;
 
   if (isReady) {
     elements.loadingOverlay.classList.add("hidden");
@@ -473,7 +507,9 @@ function setBackendReady(isReady) {
 async function loadSearchHistory() {
   try {
     const history = await globalThis.ferrum.api.getSearchHistory();
-    state.searchHistory = Array.isArray(history) ? history.map(normalizeSearchHistoryEntry).filter((entry) => entry.query) : [];
+    state.searchHistory = Array.isArray(history)
+      ? history.map(normalizeSearchHistoryEntry).filter((entry) => entry.query)
+      : [];
     state.historyLoaded = true;
   } catch {
     state.searchHistory = [];
@@ -486,14 +522,18 @@ function setSearching(isSearching) {
   elements.searchTypeSelect.disabled = isSearching;
   elements.resultsList.style.pointerEvents = isSearching ? "none" : "";
   elements.favoritesToggle.disabled = isSearching;
-  elements.searchButton.disabled = !state.backendReady || isSearching || !elements.queryInput.value.trim();
+  elements.searchButton.disabled =
+    !state.backendReady || isSearching || !elements.queryInput.value.trim();
   elements.searchButton.textContent = isSearching ? "Searching..." : "Search";
 }
 
 function setLoadingBand(isLoadingBand, bandName = "") {
   state.isLoadingBand = isLoadingBand;
   if (isLoadingBand) {
-    presentTaskLoading("Loading band", `Fetching details for ${bandName || "selected band"}...`);
+    presentTaskLoading(
+      "Loading band",
+      `Fetching details for ${bandName || "selected band"}...`,
+    );
     elements.resultsList.style.pointerEvents = "none";
     return;
   }
@@ -534,7 +574,8 @@ function showResultsEmpty(title, description) {
 
 function showDetailPlaceholder(title, description) {
   elements.detailEmpty.querySelector(".statusTitle").textContent = title;
-  elements.detailEmpty.querySelector(".statusDescription").textContent = description;
+  elements.detailEmpty.querySelector(".statusDescription").textContent =
+    description;
   elements.detailEmpty.classList.remove("hidden");
   elements.detailContent.classList.add("hidden");
 }
@@ -559,7 +600,10 @@ function syncResultsHeader() {
 
 function syncResultsCount() {
   if (state.resultsMode === "favorites") {
-    setText(elements.resultsCount, `${state.settings.favoriteBands.length} favorites`);
+    setText(
+      elements.resultsCount,
+      `${state.settings.favoriteBands.length} favorites`,
+    );
     return;
   }
 
@@ -577,14 +621,18 @@ function syncResultsCount() {
 }
 
 function buildBandSummaryMeta(item) {
-  return [item.country, item.genre, item.status].filter(Boolean).join("  •  ") || "—";
+  return (
+    [item.country, item.genre, item.status].filter(Boolean).join("  •  ") || "—"
+  );
 }
 
 function getVisibleResults() {
   if (state.resultsMode === "favorites") {
     return [...state.settings.favoriteBands]
       .map(normalizeBandSummary)
-      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+      .sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
+      );
   }
   return state.results;
 }
@@ -595,18 +643,25 @@ async function hydrateFavoriteBandArtwork() {
   }
 
   const missingArtworkFavorites = state.settings.favoriteBands.filter(
-    (band) => band.profile_url && !band.image_url && !state.favoriteArtworkLoading.has(band.profile_url)
+    (band) =>
+      band.profile_url &&
+      !band.image_url &&
+      !state.favoriteArtworkLoading.has(band.profile_url),
   );
 
   for (const band of missingArtworkFavorites) {
     state.favoriteArtworkLoading.add(band.profile_url);
     try {
-      const detail = normalizeBandDetail(await globalThis.ferrum.api.getBand(band.profile_url));
+      const detail = normalizeBandDetail(
+        await globalThis.ferrum.api.getBand(band.profile_url),
+      );
       if (!detail.image_url) {
         continue;
       }
 
-      const favoriteBand = state.settings.favoriteBands.find((item) => item.profile_url === band.profile_url);
+      const favoriteBand = state.settings.favoriteBands.find(
+        (item) => item.profile_url === band.profile_url,
+      );
       if (!favoriteBand) {
         continue;
       }
@@ -614,7 +669,7 @@ async function hydrateFavoriteBandArtwork() {
       favoriteBand.image_url = detail.image_url;
       globalThis.ferrum.settings.save({
         ...state.settings,
-        favoriteBands: state.settings.favoriteBands
+        favoriteBands: state.settings.favoriteBands,
       });
 
       if (state.resultsMode === "favorites") {
@@ -636,9 +691,15 @@ function renderResultsList() {
 
   if (items.length === 0) {
     if (state.resultsMode === "favorites") {
-      showResultsEmpty("No favorite bands yet", "Star a band from the detail panel to keep it here.");
+      showResultsEmpty(
+        "No favorite bands yet",
+        "Star a band from the detail panel to keep it here.",
+      );
     } else {
-      showResultsEmpty("Start with a band, genre or theme", "Search results will appear here and load band details on selection.");
+      showResultsEmpty(
+        "Start with a band, genre or theme",
+        "Search results will appear here and load band details on selection.",
+      );
     }
     return;
   }
@@ -688,7 +749,9 @@ function persistFavoriteBandArtwork(detail) {
     return;
   }
 
-  const favoriteBand = state.settings.favoriteBands.find((item) => item.profile_url === detail.profile_url);
+  const favoriteBand = state.settings.favoriteBands.find(
+    (item) => item.profile_url === detail.profile_url,
+  );
   if (!favoriteBand || favoriteBand.image_url === detail.image_url) {
     return;
   }
@@ -696,7 +759,7 @@ function persistFavoriteBandArtwork(detail) {
   favoriteBand.image_url = detail.image_url;
   globalThis.ferrum.settings.save({
     ...state.settings,
-    favoriteBands: state.settings.favoriteBands
+    favoriteBands: state.settings.favoriteBands,
   });
 }
 
@@ -727,14 +790,21 @@ function renderAlbumCoverPrefetchProgress() {
 
   const progress = state.albumCoverPrefetch;
   const selectedProfileUrl = state.selectedBandDetail?.profile_url ?? "";
-  if (!progress.active || !progress.total || progress.bandProfileUrl !== selectedProfileUrl) {
+  if (
+    !progress.active ||
+    !progress.total ||
+    progress.bandProfileUrl !== selectedProfileUrl
+  ) {
     progressNode.classList.add("hidden");
     progressNode.innerHTML = "";
     return;
   }
 
   const currentStep = Math.min(progress.completed + 1, progress.total);
-  const progressRatio = Math.min(1, Math.max(0, (progress.completed + 0.35) / progress.total));
+  const progressRatio = Math.min(
+    1,
+    Math.max(0, (progress.completed + 0.35) / progress.total),
+  );
   progressNode.classList.remove("hidden");
   progressNode.innerHTML = `
     <div class="albumCoverPrefetchLabel">Descargando ${escapeHtml(progress.currentTitle || "cover")} (${currentStep}/${progress.total})...</div>
@@ -751,17 +821,17 @@ function stopAlbumCoverPrefetch() {
     active: false,
     total: 0,
     completed: 0,
-    currentTitle: ""
+    currentTitle: "",
   };
   renderAlbumCoverPrefetchProgress();
 }
 
 function isAlbumCoverPrefetchTaskCurrent(taskToken, profileUrl) {
   return (
-    state.albumCoverPrefetch.token === taskToken
-    && state.albumCoverPrefetch.active
-    && state.albumCoverPrefetch.bandProfileUrl === profileUrl
-    && state.selectedBandDetail?.profile_url === profileUrl
+    state.albumCoverPrefetch.token === taskToken &&
+    state.albumCoverPrefetch.active &&
+    state.albumCoverPrefetch.bandProfileUrl === profileUrl &&
+    state.selectedBandDetail?.profile_url === profileUrl
   );
 }
 
@@ -914,7 +984,8 @@ function createJewelcaseNode(album, options = {}) {
   `;
 
   const spineGloss = document.createElement("div");
-  spineGloss.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;box-shadow:inset 0 0 12px #fff3,0 0 8px #0008;pointer-events:none;";
+  spineGloss.style.cssText =
+    "position:absolute;top:0;left:0;width:100%;height:100%;box-shadow:inset 0 0 12px #fff3,0 0 8px #0008;pointer-events:none;";
   spine.appendChild(spineGloss);
 
   const front = document.createElement("div");
@@ -947,7 +1018,8 @@ function createJewelcaseNode(album, options = {}) {
     const coverImage = createArtworkNode(album.image_url, "");
     coverImage.alt = album.title || "Album cover";
     coverImage.loading = "eager";
-    coverImage.style.cssText = "width:calc(100% - 1px);height:calc(100% - 1px);object-fit:cover;box-shadow:0 0 8px #0004;background:#222;";
+    coverImage.style.cssText =
+      "width:calc(100% - 1px);height:calc(100% - 1px);object-fit:cover;box-shadow:0 0 8px #0004;background:#222;";
     frame.appendChild(coverImage);
   } else {
     frame.appendChild(createCompactDiscNode(coverSize));
@@ -956,7 +1028,8 @@ function createJewelcaseNode(album, options = {}) {
   front.appendChild(frame);
 
   const frontGloss = document.createElement("div");
-  frontGloss.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;box-shadow:inset 0 0 32px #fff3,0 0 24px #0008;pointer-events:none;";
+  frontGloss.style.cssText =
+    "position:absolute;top:0;left:0;width:100%;height:100%;box-shadow:inset 0 0 32px #fff3,0 0 24px #0008;pointer-events:none;";
   front.appendChild(frontGloss);
 
   const hinge = document.createElement("div");
@@ -975,7 +1048,8 @@ function createJewelcaseNode(album, options = {}) {
   front.appendChild(hinge);
 
   const plasticTexture = document.createElement("div");
-  plasticTexture.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;mix-blend-mode:soft-light;background:repeating-linear-gradient(120deg,rgba(255,255,255,0.04) 0 2px,transparent 2px 12px);";
+  plasticTexture.style.cssText =
+    "position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;mix-blend-mode:soft-light;background:repeating-linear-gradient(120deg,rgba(255,255,255,0.04) 0 2px,transparent 2px 12px);";
 
   caseNode.append(spine, front, plasticTexture);
   return caseNode;
@@ -1005,20 +1079,28 @@ function renderBandDetail(detail) {
   showDetailContent();
 
   const countryFlag = countryToFlag(detail.country);
-  const countryLocation = [detail.country, detail.location].filter(Boolean).join(", ");
+  const countryLocation = [detail.country, detail.location]
+    .filter(Boolean)
+    .join(", ");
   const formedLabel = detail.formed_in ? `Since ${detail.formed_in}` : null;
   const chips = [
     renderBandStatusChip(detail.status),
-    countryLocation ? `<span class="chip">${escapeHtml(`${countryFlag ? `${countryFlag} ` : ""}${countryLocation}`)}</span>` : "",
+    countryLocation
+      ? `<span class="chip">${escapeHtml(`${countryFlag ? `${countryFlag} ` : ""}${countryLocation}`)}</span>`
+      : "",
     detail.genre ? `<span class="chip">${escapeHtml(detail.genre)}</span>` : "",
     formedLabel ? `<span class="chip">${escapeHtml(formedLabel)}</span>` : "",
-    detail.years_active ? `<span class="chip">${escapeHtml(detail.years_active)}</span>` : ""
+    detail.years_active
+      ? `<span class="chip">${escapeHtml(detail.years_active)}</span>`
+      : "",
   ]
     .filter(Boolean)
     .join("");
 
   const favoriteLabel = isFavoriteBand(detail.profile_url) ? "★" : "☆";
-  const favoriteTitle = isFavoriteBand(detail.profile_url) ? "Remove favorite" : "Add favorite";
+  const favoriteTitle = isFavoriteBand(detail.profile_url)
+    ? "Remove favorite"
+    : "Add favorite";
 
   elements.detailContent.innerHTML = `
     <section class="heroCard bandHeroCard">
@@ -1043,7 +1125,6 @@ function renderBandDetail(detail) {
         <div class="albumShelf">
           <div class="albumList" id="discographyList"></div>
         </div>
-        <aside class="albumInspector" id="albumInspector"></aside>
       </div>
     </section>
   `;
@@ -1060,7 +1141,9 @@ function renderBandDetail(detail) {
   favoriteButton?.addEventListener("click", () => toggleFavorite(detail));
 
   const openProfileButton = document.getElementById("openProfileButton");
-  openProfileButton?.addEventListener("click", () => globalThis.ferrum.openExternal(detail.profile_url));
+  openProfileButton?.addEventListener("click", () =>
+    globalThis.ferrum.openExternal(detail.profile_url),
+  );
 
   const discographyFilter = document.getElementById("discographyFilter");
   const filters = resolveDiscographyFilters(detail.discography);
@@ -1106,23 +1189,26 @@ function resolveDiscographyFilters(discography) {
 function getFilteredDiscographyAlbums(detail) {
   let albums = detail?.discography ?? [];
   if (state.selectedBandFilter) {
-    albums = albums.filter((album) => (String(album.type ?? "").trim() || "Other") === state.selectedBandFilter);
+    albums = albums.filter(
+      (album) =>
+        (String(album.type ?? "").trim() || "Other") ===
+        state.selectedBandFilter,
+    );
   }
   return albums;
 }
 
 function renderDiscography(detail) {
   const list = document.getElementById("discographyList");
-  const shelf = list?.closest(".albumShelf");
-  if (!list || !shelf) {
-    return;
-  }
-
-  const previousScrollTop = shelf.scrollTop;
+  // Soporte para scroll aunque no haya .albumShelf
+  const previousScrollTop = list.scrollTop;
   list.replaceChildren();
   const albums = getFilteredDiscographyAlbums(detail);
 
-  if (state.expandedAlbumUrl && !albums.some((album) => album.url === state.expandedAlbumUrl)) {
+  if (
+    state.expandedAlbumUrl &&
+    !albums.some((album) => album.url === state.expandedAlbumUrl)
+  ) {
     state.expandedAlbumUrl = null;
     state.expandedAlbumLoadingUrl = null;
     state.expandedAlbumError = null;
@@ -1162,7 +1248,12 @@ function renderDiscography(detail) {
       <div class="arrow"></div>
     `;
     const artworkSlot = button.firstElementChild;
-    const jewelcaseNode = createJewelcaseNode(album, { coverSize: 102, spineWidth: 12, frameInset: 0.972, fluidWidth: true });
+    const jewelcaseNode = createJewelcaseNode(album, {
+      coverSize: 102,
+      spineWidth: 12,
+      frameInset: 0.972,
+      fluidWidth: true,
+    });
     jewelcaseNode.classList.add("albumArtworkJewelcase");
     artworkSlot.replaceWith(jewelcaseNode);
     if (album.url) {
@@ -1175,11 +1266,11 @@ function renderDiscography(detail) {
     list.appendChild(button);
   }
 
-  shelf.scrollTop = previousScrollTop;
+  list.scrollTop = previousScrollTop;
   requestAnimationFrame(() => {
-    shelf.scrollTop = previousScrollTop;
+    list.scrollTop = previousScrollTop;
   });
-  renderAlbumInspector();
+  // No renderAlbumInspector, solo modal
 }
 
 async function onBandSelected(band) {
@@ -1197,7 +1288,9 @@ async function onBandSelected(band) {
 
   let shouldShowLoading = true;
   try {
-    shouldShowLoading = !(await globalThis.ferrum.api.hasBandCache(band.profile_url));
+    shouldShowLoading = !(await globalThis.ferrum.api.hasBandCache(
+      band.profile_url,
+    ));
   } catch {
     shouldShowLoading = true;
   }
@@ -1208,20 +1301,27 @@ async function onBandSelected(band) {
 
   try {
     const detail = await globalThis.ferrum.api.getBand(band.profile_url);
-    if (state.selectedBandRequestToken !== requestToken || state.selectedBandSummary?.profile_url !== band.profile_url) {
+    if (
+      state.selectedBandRequestToken !== requestToken ||
+      state.selectedBandSummary?.profile_url !== band.profile_url
+    ) {
       return;
     }
     renderBandDetail(normalizeBandDetail(detail));
   } catch (error) {
     if (state.selectedBandRequestToken === requestToken) {
-      showDetailPlaceholder("Band details live here", error?.message || "Failed to load band detail.");
+      showDetailPlaceholder(
+        "Band details live here",
+        error?.message || "Failed to load band detail.",
+      );
     }
   } finally {
     if (state.selectedBandRequestToken === requestToken) {
       closeTaskLoading();
       state.isLoadingBand = false;
       elements.resultsList.style.pointerEvents = "";
-      elements.resultsBody.scrollTop = state.resultsScrollTop[state.resultsMode] ?? 0;
+      elements.resultsBody.scrollTop =
+        state.resultsScrollTop[state.resultsMode] ?? 0;
     }
   }
 }
@@ -1231,7 +1331,9 @@ function toggleFavorite(detail) {
     return;
   }
 
-  const index = state.settings.favoriteBands.findIndex((item) => item.profile_url === detail.profile_url);
+  const index = state.settings.favoriteBands.findIndex(
+    (item) => item.profile_url === detail.profile_url,
+  );
   if (index >= 0) {
     state.settings.favoriteBands.splice(index, 1);
   } else {
@@ -1241,24 +1343,30 @@ function toggleFavorite(detail) {
       genre: detail.genre || "",
       status: detail.status || "",
       profile_url: detail.profile_url,
-      image_url: detail.image_url || ""
+      image_url: detail.image_url || "",
     });
   }
 
   globalThis.ferrum.settings.save({
     ...state.settings,
-    favoriteBands: state.settings.favoriteBands
+    favoriteBands: state.settings.favoriteBands,
   });
   renderBandDetail(detail);
   renderResultsList();
 }
 
 function syncAlbumArtworkFromDetail(albumDetail) {
-  if (!albumDetail?.url || !albumDetail.image_url || !state.selectedBandDetail) {
+  if (
+    !albumDetail?.url ||
+    !albumDetail.image_url ||
+    !state.selectedBandDetail
+  ) {
     return false;
   }
 
-  const currentAlbum = state.selectedBandDetail.discography.find((item) => item.url === albumDetail.url);
+  const currentAlbum = state.selectedBandDetail.discography.find(
+    (item) => item.url === albumDetail.url,
+  );
   if (!currentAlbum || currentAlbum.image_url === albumDetail.image_url) {
     return false;
   }
@@ -1308,53 +1416,24 @@ async function openAlbum(album) {
     return;
   }
 
-  if (state.expandedAlbumUrl === album.url && state.expandedAlbumLoadingUrl !== album.url) {
-    state.expandedAlbumUrl = null;
-    state.expandedAlbumError = null;
-    renderDiscography(state.selectedBandDetail);
-    return;
-  }
-
-  const selectedBandProfileUrl = state.selectedBandDetail?.profile_url ?? "";
-  state.expandedAlbumUrl = album.url;
-  state.expandedAlbumError = null;
-  renderDiscography(state.selectedBandDetail);
-
-  if (state.albumDetailsByUrl[album.url]) {
-    return;
-  }
-
-  let shouldShowLoading = true;
-  try {
-    shouldShowLoading = !(await globalThis.ferrum.api.hasAlbumCache(album.url));
-  } catch {
-    shouldShowLoading = true;
-  }
-
-  if (shouldShowLoading) {
-    state.expandedAlbumLoadingUrl = album.url;
-    presentTaskLoading("Loading album", `Fetching details for ${album.title || "selected release"}...`);
-    renderDiscography(state.selectedBandDetail);
-  }
+  // Show loading in modal
+  elements.albumModal.classList.remove("hidden");
+  elements.albumModalTitle.textContent = album.title || "Album";
+  elements.albumModalSubtitle.textContent = album.year || "";
+  elements.albumModalBody.innerHTML = `<div class="albumInspectorState"><div><div class="sectionTitle">Loading album...</div><div class="resultMeta">Fetching details for ${escapeHtml(album.title || "selected release")}.</div></div></div>`;
 
   try {
-    await fetchAlbumDetail(album);
-    if (state.selectedBandDetail?.profile_url === selectedBandProfileUrl) {
-      state.expandedAlbumError = null;
+    const detail = await fetchAlbumDetail(album);
+    // Render album details in modal
+    if (detail) {
+      const panel = buildExpandedAlbumPanel(detail);
+      elements.albumModalBody.innerHTML = "";
+      elements.albumModalBody.appendChild(panel);
+    } else {
+      elements.albumModalBody.innerHTML = `<div class="albumInspectorState"><div><div class="sectionTitle">Album</div><div class="resultMeta">No details found.</div></div></div>`;
     }
   } catch (error) {
-    if (state.selectedBandDetail?.profile_url === selectedBandProfileUrl) {
-      state.expandedAlbumError = {
-        url: album.url,
-        message: error?.message || "Failed to load album"
-      };
-    }
-  } finally {
-    if (state.selectedBandDetail?.profile_url === selectedBandProfileUrl) {
-      state.expandedAlbumLoadingUrl = null;
-      renderDiscography(state.selectedBandDetail);
-      closeTaskLoading();
-    }
+    elements.albumModalBody.innerHTML = `<div class="albumInspectorState"><div><div class="sectionTitle">Error</div><div class="resultMeta">${escapeHtml(error?.message || "Failed to load album")}</div></div></div>`;
   }
 }
 
@@ -1364,7 +1443,9 @@ async function startAlbumCoverPrefetch(detail) {
     return;
   }
 
-  const pendingAlbums = getFilteredDiscographyAlbums(detail).filter((album) => album.url && !album.image_url);
+  const pendingAlbums = getFilteredDiscographyAlbums(detail).filter(
+    (album) => album.url && !album.image_url,
+  );
   if (pendingAlbums.length === 0) {
     stopAlbumCoverPrefetch();
     return;
@@ -1377,7 +1458,7 @@ async function startAlbumCoverPrefetch(detail) {
     active: true,
     total: pendingAlbums.length,
     completed: 0,
-    currentTitle: pendingAlbums[0]?.title || "cover"
+    currentTitle: pendingAlbums[0]?.title || "cover",
   };
   renderAlbumCoverPrefetchProgress();
 
@@ -1414,7 +1495,9 @@ async function startAlbumCoverPrefetch(detail) {
 }
 
 function resolveProviderLabel() {
-  return state.settings.musicProvider === "youtube" ? "YouTube" : "YouTube Music";
+  return state.settings.musicProvider === "youtube"
+    ? "YouTube"
+    : "YouTube Music";
 }
 
 function buildProviderUrl(bandName, albumTitle, trackTitle = "") {
@@ -1476,7 +1559,7 @@ function buildExpandedAlbumPanel(albumSummary) {
           <div class="trackMeta">${escapeHtml(track.duration || "Unknown length")}</div>
           <button class="button" type="button" data-track-title="${escapeHtml(track.title || "")}">Play</button>
         </div>
-      `
+      `,
     )
     .join("");
 
@@ -1503,13 +1586,23 @@ function buildExpandedAlbumPanel(albumSummary) {
   `;
 
   const artworkSlot = panel.querySelector("[id^='album-inline-art-']");
-  const jewelcaseNode = createJewelcaseNode(album, { coverSize: 180, spineWidth: 20, frameInset: 0.972 });
+  const jewelcaseNode = createJewelcaseNode(album, {
+    coverSize: 180,
+    spineWidth: 20,
+    frameInset: 0.972,
+  });
   artworkSlot?.replaceWith(jewelcaseNode);
 
-  panel.querySelector("[data-album-open-browser]")?.addEventListener("click", () => globalThis.ferrum.openExternal(album.url));
-  panel.querySelector("[data-album-provider]")?.addEventListener("click", () => {
-    startAlbumPlayback(album, "");
-  });
+  panel
+    .querySelector("[data-album-open-browser]")
+    ?.addEventListener("click", () =>
+      globalThis.ferrum.openExternal(album.url),
+    );
+  panel
+    .querySelector("[data-album-provider]")
+    ?.addEventListener("click", () => {
+      startAlbumPlayback(album, "");
+    });
 
   for (const button of panel.querySelectorAll("[data-track-title]")) {
     button.addEventListener("click", () => {
@@ -1544,7 +1637,9 @@ function renderAlbumInspector() {
     return;
   }
 
-  const selectedAlbum = state.selectedBandDetail?.discography?.find((album) => album.url === state.expandedAlbumUrl);
+  const selectedAlbum = state.selectedBandDetail?.discography?.find(
+    (album) => album.url === state.expandedAlbumUrl,
+  );
   if (!selectedAlbum) {
     inspector.innerHTML = `
       <div class="albumInspectorState">
@@ -1576,7 +1671,9 @@ function renderSearchHistoryModal() {
     item.textContent = "No search history yet.";
     elements.historyList.appendChild(item);
   } else {
-    const entries = [...state.searchHistory].sort((a, b) => a.query.localeCompare(b.query, undefined, { sensitivity: "base" }));
+    const entries = [...state.searchHistory].sort((a, b) =>
+      a.query.localeCompare(b.query, undefined, { sensitivity: "base" }),
+    );
     for (const entry of entries) {
       const item = document.createElement("li");
       const button = document.createElement("button");
@@ -1611,7 +1708,10 @@ function closeAlbumModal() {
 function toggleAppMenu(forceOpen) {
   const shouldOpen = forceOpen ?? elements.appMenu.classList.contains("hidden");
   elements.appMenu.classList.toggle("hidden", !shouldOpen);
-  elements.menuButton.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
+  elements.menuButton.setAttribute(
+    "aria-expanded",
+    shouldOpen ? "true" : "false",
+  );
 }
 
 function closeAppMenu() {
@@ -1625,10 +1725,15 @@ async function refreshSelectedBandFromEndpoint() {
   }
 
   stopAlbumCoverPrefetch();
-  presentTaskLoading("Refreshing band", `Fetching fresh data for ${detail.name || "selected band"}...`);
+  presentTaskLoading(
+    "Refreshing band",
+    `Fetching fresh data for ${detail.name || "selected band"}...`,
+  );
   try {
     await globalThis.ferrum.api.clearBandCache(detail.profile_url);
-    const refreshedDetail = await globalThis.ferrum.api.getBand(detail.profile_url);
+    const refreshedDetail = await globalThis.ferrum.api.getBand(
+      detail.profile_url,
+    );
     renderBandDetail(normalizeBandDetail(refreshedDetail));
   } catch (error) {
     window.alert(error?.message || "Could not refresh artist data.");
@@ -1651,12 +1756,15 @@ function updateAppMenuState() {
 
 function renderSettingsColorRows() {
   elements.settingsColorList.replaceChildren();
-  const albumTypes = Object.keys(state.settings.albumTypeColors).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+  const albumTypes = Object.keys(state.settings.albumTypeColors).sort((a, b) =>
+    a.localeCompare(b, undefined, { sensitivity: "base" }),
+  );
 
   if (albumTypes.length === 0) {
     const empty = document.createElement("div");
     empty.className = "settingsEmpty";
-    empty.textContent = "Album types will appear here after you load bands with discography data.";
+    empty.textContent =
+      "Album types will appear here after you load bands with discography data.";
     elements.settingsColorList.appendChild(empty);
     return;
   }
@@ -1723,11 +1831,16 @@ function renderSettingsColorRows() {
 }
 
 function openSettingsModal() {
-  elements.themeSelect.value = THEME_MODES.includes(state.settings.themeMode) ? state.settings.themeMode : "black";
-  elements.providerSelect.value = state.settings.musicProvider || "youtube_music";
+  elements.themeSelect.value = THEME_MODES.includes(state.settings.themeMode)
+    ? state.settings.themeMode
+    : "black";
+  elements.providerSelect.value =
+    state.settings.musicProvider || "youtube_music";
   applyFavoriteLogoOpacity();
   if (elements.favoriteImageOnlyCheckbox) {
-    elements.favoriteImageOnlyCheckbox.checked = Boolean(state.settings.favoriteImageOnly);
+    elements.favoriteImageOnlyCheckbox.checked = Boolean(
+      state.settings.favoriteImageOnly,
+    );
   }
   renderSettingsColorRows();
   elements.settingsModal.classList.remove("hidden");
@@ -1752,7 +1865,10 @@ async function submitSearch() {
   state.selectedBandDetail = null;
   state.selectedBandFilter = null;
   stopAlbumCoverPrefetch();
-  showDetailPlaceholder("Band details live here", "Pick a result to inspect line-up context, metadata and discography.");
+  showDetailPlaceholder(
+    "Band details live here",
+    "Pick a result to inspect line-up context, metadata and discography.",
+  );
   setSearching(true);
   state.results = [];
   presentTaskLoading("Searching", `Searching for ${query}...`);
@@ -1761,7 +1877,9 @@ async function submitSearch() {
   try {
     const searchType = elements.searchTypeSelect.value;
     const results = await globalThis.ferrum.api.search(query, searchType);
-    state.results = Array.isArray(results) ? results.map(normalizeBandSummary) : [];
+    state.results = Array.isArray(results)
+      ? results.map(normalizeBandSummary)
+      : [];
     rememberSearchHistoryEntry(query, searchType);
     renderResultsList();
   } catch (error) {
@@ -1777,18 +1895,28 @@ async function submitSearch() {
 async function bootstrap() {
   const [config, settings] = await Promise.all([
     globalThis.ferrum.backend.getConfig(),
-    globalThis.ferrum.settings.load()
+    globalThis.ferrum.settings.load(),
   ]);
 
   state.settings = {
     themeMode: settings?.themeMode ?? settings?.theme_mode ?? "black",
-    musicProvider: settings?.musicProvider ?? settings?.music_provider ?? "youtube_music",
-    favoriteLogoOpacity: clampFavoriteLogoOpacity(settings?.favoriteLogoOpacity ?? settings?.favorite_logo_opacity ?? 0),
-    favoriteImageOnly: Boolean(settings?.favoriteImageOnly ?? settings?.favorite_image_only ?? false),
-    albumTypeColors: settings?.albumTypeColors ?? settings?.album_type_colors ?? {},
-    favoriteBands: Array.isArray(settings?.favoriteBands ?? settings?.favorite_bands)
-      ? (settings?.favoriteBands ?? settings?.favorite_bands).map(normalizeBandSummary)
-      : []
+    musicProvider:
+      settings?.musicProvider ?? settings?.music_provider ?? "youtube_music",
+    favoriteLogoOpacity: clampFavoriteLogoOpacity(
+      settings?.favoriteLogoOpacity ?? settings?.favorite_logo_opacity ?? 0,
+    ),
+    favoriteImageOnly: Boolean(
+      settings?.favoriteImageOnly ?? settings?.favorite_image_only ?? false,
+    ),
+    albumTypeColors:
+      settings?.albumTypeColors ?? settings?.album_type_colors ?? {},
+    favoriteBands: Array.isArray(
+      settings?.favoriteBands ?? settings?.favorite_bands,
+    )
+      ? (settings?.favoriteBands ?? settings?.favorite_bands).map(
+          normalizeBandSummary,
+        )
+      : [],
   };
   applyTheme();
   applyFavoriteLogoOpacity();
@@ -1812,7 +1940,10 @@ globalThis.ferrum.backend.onStatus((payload) => {
 });
 
 elements.queryInput.addEventListener("input", () => {
-  elements.searchButton.disabled = !state.backendReady || state.isSearching || !elements.queryInput.value.trim();
+  elements.searchButton.disabled =
+    !state.backendReady ||
+    state.isSearching ||
+    !elements.queryInput.value.trim();
 });
 
 elements.searchForm.addEventListener("submit", (event) => {
@@ -1822,7 +1953,8 @@ elements.searchForm.addEventListener("submit", (event) => {
 
 elements.favoritesToggle.addEventListener("click", () => {
   state.resultsScrollTop[state.resultsMode] = elements.resultsBody.scrollTop;
-  state.resultsMode = state.resultsMode === "favorites" ? "search" : "favorites";
+  state.resultsMode =
+    state.resultsMode === "favorites" ? "search" : "favorites";
   renderResultsList();
 });
 
@@ -1879,7 +2011,10 @@ elements.settingsModal.addEventListener("click", (event) => {
 });
 
 document.addEventListener("click", (event) => {
-  if (!elements.appMenu.contains(event.target) && !elements.menuButton.contains(event.target)) {
+  if (
+    !elements.appMenu.contains(event.target) &&
+    !elements.menuButton.contains(event.target)
+  ) {
     closeAppMenu();
   }
 });
@@ -1898,12 +2033,16 @@ elements.providerSelect.addEventListener("change", () => {
 });
 
 elements.favoriteLogoOpacityRange?.addEventListener("input", () => {
-  state.settings.favoriteLogoOpacity = clampFavoriteLogoOpacity(elements.favoriteLogoOpacityRange.value);
+  state.settings.favoriteLogoOpacity = clampFavoriteLogoOpacity(
+    elements.favoriteLogoOpacityRange.value,
+  );
   applyFavoriteLogoOpacity();
 });
 
 elements.favoriteLogoOpacityRange?.addEventListener("change", () => {
-  state.settings.favoriteLogoOpacity = clampFavoriteLogoOpacity(elements.favoriteLogoOpacityRange.value);
+  state.settings.favoriteLogoOpacity = clampFavoriteLogoOpacity(
+    elements.favoriteLogoOpacityRange.value,
+  );
   applyFavoriteLogoOpacity();
   persistSettings();
 });
@@ -1916,13 +2055,15 @@ elements.favoriteImageOnlyCheckbox?.addEventListener("change", () => {
   }
 });
 
-window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
-  if (state.settings.themeMode === "system") {
-    applyTheme();
-    refreshAlbumTypeBadges();
-    renderSettingsColorRows();
-  }
-});
+window
+  .matchMedia("(prefers-color-scheme: dark)")
+  .addEventListener("change", () => {
+    if (state.settings.themeMode === "system") {
+      applyTheme();
+      refreshAlbumTypeBadges();
+      renderSettingsColorRows();
+    }
+  });
 
 globalThis.ferrum.ui.onCommand((payload) => {
   if (!state.backendReady || !payload?.command) {
@@ -1941,7 +2082,13 @@ globalThis.ferrum.ui.onCommand((payload) => {
   }
 });
 
-showResultsEmpty("Start with a band, genre or theme", "Search results will appear here and load band details on selection.");
-showDetailPlaceholder("Band details live here", "Pick a result to inspect line-up context, metadata and discography.");
+showResultsEmpty(
+  "Start with a band, genre or theme",
+  "Search results will appear here and load band details on selection.",
+);
+showDetailPlaceholder(
+  "Band details live here",
+  "Pick a result to inspect line-up context, metadata and discography.",
+);
 updateAppMenuState();
 bootstrap();
