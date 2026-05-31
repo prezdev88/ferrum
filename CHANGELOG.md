@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.4.0](https://github.com/prezdev88/ferrum/compare/v1.3.0...v1.4.0) (2026-05-31)
+
+
+### Features
+
+* add album grid size adjustment feature with settings control ([2a0b88f](https://github.com/prezdev88/ferrum/commit/2a0b88fdac00f8791f70fa68a9109c53d421ffae))
+* add option to show album info in band view and update related settings ([0e42a11](https://github.com/prezdev88/ferrum/commit/0e42a11b281c5b16d62172b5ec34bd6218ed9218))
+* adjust album cover prefetch bar styles for improved appearance ([1f71364](https://github.com/prezdev88/ferrum/commit/1f7136426b8016169528f55053d68002463d3da7))
+* adjust padding and max-height in discography and album rows for improved layout ([e7aee44](https://github.com/prezdev88/ferrum/commit/e7aee4400c6691c2750d005963d1636f03c47fcf))
+* adjust padding in modal for improved content visibility ([ca63209](https://github.com/prezdev88/ferrum/commit/ca63209a9f64a10bec54b79259e1c0235efff5a6))
+* album to modal ([39be56b](https://github.com/prezdev88/ferrum/commit/39be56b4d84dff945597757a72e6e6d37160b836))
+* implement album cover prefetching with progress display ([0010f74](https://github.com/prezdev88/ferrum/commit/0010f7447fe9ee87e76634cc2cae1989da55a575))
+* refactor discography layout and improve album modal handling ([6e9ab0d](https://github.com/prezdev88/ferrum/commit/6e9ab0dfa920c014884b754cfd1daec31dddabc0))
+* refactor jewelcase spine width calculations for improved responsiveness ([a6a38eb](https://github.com/prezdev88/ferrum/commit/a6a38eb50fd588358e1dcce328c0e0ab421b136d))
+* simplify album modal by removing header elements and add escape key functionality for closing modals ([10be74a](https://github.com/prezdev88/ferrum/commit/10be74af71e42f8c2690b4371e8b62c8564e0da2))
+* update album cover image style to use 'contain' for better fit ([4ac195b](https://github.com/prezdev88/ferrum/commit/4ac195b581420bbbfbbcd1711f10e8ea8754abb0))
+* update discography shelf and album row styles for improved UI consistency ([3cbd4d3](https://github.com/prezdev88/ferrum/commit/3cbd4d3b73ac2f34ac83b8cf7b510dbab3e7ff37))
+
 ## [1.3.0](https://github.com/prezdev88/ferrum/compare/v1.2.0...v1.3.0) (2026-05-30)
 
 
