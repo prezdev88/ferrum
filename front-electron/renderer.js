@@ -104,10 +104,7 @@ const elements = {
   historyList: document.getElementById("historyList"),
   historyCloseButton: document.getElementById("historyCloseButton"),
   albumModal: document.getElementById("albumModal"),
-  albumModalTitle: document.getElementById("albumModalTitle"),
-  albumModalSubtitle: document.getElementById("albumModalSubtitle"),
   albumModalBody: document.getElementById("albumModalBody"),
-  albumCloseButton: document.getElementById("albumCloseButton"),
   settingsModal: document.getElementById("settingsModal"),
   settingsCloseButton: document.getElementById("settingsCloseButton"),
   themeSelect: document.getElementById("themeSelect"),
@@ -1474,8 +1471,6 @@ async function openAlbum(album) {
   state.expandedAlbumError = null;
   renderDiscography(state.selectedBandDetail);
   elements.albumModal.classList.remove("hidden");
-  elements.albumModalTitle.textContent = album.title || "Album";
-  elements.albumModalSubtitle.textContent = album.year || "";
   elements.albumModalBody.innerHTML = `<div class="albumInspectorState"><div><div class="sectionTitle">Loading album...</div><div class="resultMeta">Fetching details for ${escapeHtml(album.title || "selected release")}.</div></div></div>`;
 
   try {
@@ -2064,7 +2059,6 @@ elements.menuQuitButton.addEventListener("click", () => {
 });
 
 elements.historyCloseButton.addEventListener("click", closeHistoryModal);
-elements.albumCloseButton.addEventListener("click", closeAlbumModal);
 
 elements.historyModal.addEventListener("click", (event) => {
   if (event.target === elements.historyModal) {
@@ -2092,6 +2086,26 @@ document.addEventListener("click", (event) => {
     !elements.menuButton.contains(event.target)
   ) {
     closeAppMenu();
+  }
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") {
+    return;
+  }
+
+  if (!elements.albumModal.classList.contains("hidden")) {
+    closeAlbumModal();
+    return;
+  }
+
+  if (!elements.historyModal.classList.contains("hidden")) {
+    closeHistoryModal();
+    return;
+  }
+
+  if (!elements.settingsModal.classList.contains("hidden")) {
+    closeSettingsModal();
   }
 });
 
