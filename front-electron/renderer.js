@@ -149,6 +149,16 @@ const state = {
   expandedAlbumLoadingUrl: null,
   expandedAlbumError: null,
   albumDetailsByUrl: {},
+  albumDetailRequestsByUrl: {},
+  selectedBandRequestToken: 0,
+  albumCoverPrefetch: {
+    token: 0,
+    bandProfileUrl: "",
+    active: false,
+    total: 0,
+    completed: 0,
+    currentTitle: ""
+  },
   taskLoadingTimer: null,
   detailLoadingTimer: null
 };
@@ -709,6 +719,58 @@ function createArtworkNode(src, className) {
   return fallback;
 }
 
+function renderAlbumCoverPrefetchProgress() {
+  const progressNode = document.getElementById("albumCoverPrefetchProgress");
+  if (!progressNode) {
+    return;
+  }
+
+  const progress = state.albumCoverPrefetch;
+  const selectedProfileUrl = state.selectedBandDetail?.profile_url ?? "";
+  if (!progress.active || !progress.total || progress.bandProfileUrl !== selectedProfileUrl) {
+    progressNode.classList.add("hidden");
+    progressNode.innerHTML = "";
+    return;
+  }
+
+  const currentStep = Math.min(progress.completed + 1, progress.total);
+  const progressRatio = Math.min(1, Math.max(0, (progress.completed + 0.35) / progress.total));
+  progressNode.classList.remove("hidden");
+  progressNode.innerHTML = `
+    <div class="albumCoverPrefetchLabel">Descargando ${escapeHtml(progress.currentTitle || "cover")} (${currentStep}/${progress.total})...</div>
+    <div class="albumCoverPrefetchBar" aria-hidden="true">
+      <div style="width:${(progressRatio * 100).toFixed(2)}%;"></div>
+    </div>
+  `;
+}
+
+function stopAlbumCoverPrefetch() {
+  state.albumCoverPrefetch = {
+    token: state.albumCoverPrefetch.token + 1,
+    bandProfileUrl: "",
+    active: false,
+    total: 0,
+    completed: 0,
+    currentTitle: ""
+  };
+  renderAlbumCoverPrefetchProgress();
+}
+
+function isAlbumCoverPrefetchTaskCurrent(taskToken, profileUrl) {
+  return (
+    state.albumCoverPrefetch.token === taskToken
+    && state.albumCoverPrefetch.active
+    && state.albumCoverPrefetch.bandProfileUrl === profileUrl
+    && state.selectedBandDetail?.profile_url === profileUrl
+  );
+}
+
+function wait(milliseconds) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, milliseconds);
+  });
+}
+
 function createCompactDiscNode(size) {
   const discStage = document.createElement("div");
   discStage.style.cssText = `
@@ -976,6 +1038,7 @@ function renderBandDetail(detail) {
       <div id="bandHeroArtwork"></div>
     </section>
     <section class="sectionCard discographySection">
+      <div class="albumCoverPrefetchProgress hidden" id="albumCoverPrefetchProgress"></div>
       <div class="discographyWorkspace">
         <div class="albumShelf">
           <div class="albumList" id="discographyList"></div>
@@ -1018,11 +1081,15 @@ function renderBandDetail(detail) {
   discographyFilter.addEventListener("change", () => {
     state.selectedBandFilter = discographyFilter.value || null;
     renderDiscography(detail);
+    stopAlbumCoverPrefetch();
+    void startAlbumCoverPrefetch(detail);
   });
 
   renderDiscography(detail);
   renderAlbumInspector();
+  renderAlbumCoverPrefetchProgress();
   updateAppMenuState();
+  void startAlbumCoverPrefetch(detail);
 }
 
 function resolveDiscographyFilters(discography) {
@@ -1036,6 +1103,14 @@ function resolveDiscographyFilters(discography) {
   return filters;
 }
 
+function getFilteredDiscographyAlbums(detail) {
+  let albums = detail?.discography ?? [];
+  if (state.selectedBandFilter) {
+    albums = albums.filter((album) => (String(album.type ?? "").trim() || "Other") === state.selectedBandFilter);
+  }
+  return albums;
+}
+
 function renderDiscography(detail) {
   const list = document.getElementById("discographyList");
   const shelf = list?.closest(".albumShelf");
@@ -1045,10 +1120,7 @@ function renderDiscography(detail) {
 
   const previousScrollTop = shelf.scrollTop;
   list.replaceChildren();
-  let albums = detail.discography ?? [];
-  if (state.selectedBandFilter) {
-    albums = albums.filter((album) => (String(album.type ?? "").trim() || "Other") === state.selectedBandFilter);
-  }
+  const albums = getFilteredDiscographyAlbums(detail);
 
   if (state.expandedAlbumUrl && !albums.some((album) => album.url === state.expandedAlbumUrl)) {
     state.expandedAlbumUrl = null;
@@ -1115,6 +1187,10 @@ async function onBandSelected(band) {
     return;
   }
 
+  const requestToken = state.selectedBandRequestToken + 1;
+  state.selectedBandRequestToken = requestToken;
+  stopAlbumCoverPrefetch();
+  closeTaskLoading();
   state.resultsScrollTop[state.resultsMode] = elements.resultsBody.scrollTop;
   state.selectedBandSummary = band;
   renderResultsList();
@@ -1132,14 +1208,21 @@ async function onBandSelected(band) {
 
   try {
     const detail = await globalThis.ferrum.api.getBand(band.profile_url);
+    if (state.selectedBandRequestToken !== requestToken || state.selectedBandSummary?.profile_url !== band.profile_url) {
+      return;
+    }
     renderBandDetail(normalizeBandDetail(detail));
   } catch (error) {
-    showDetailPlaceholder("Band details live here", error?.message || "Failed to load band detail.");
+    if (state.selectedBandRequestToken === requestToken) {
+      showDetailPlaceholder("Band details live here", error?.message || "Failed to load band detail.");
+    }
   } finally {
-    closeTaskLoading();
-    state.isLoadingBand = false;
-    elements.resultsList.style.pointerEvents = "";
-    elements.resultsBody.scrollTop = state.resultsScrollTop[state.resultsMode] ?? 0;
+    if (state.selectedBandRequestToken === requestToken) {
+      closeTaskLoading();
+      state.isLoadingBand = false;
+      elements.resultsList.style.pointerEvents = "";
+      elements.resultsBody.scrollTop = state.resultsScrollTop[state.resultsMode] ?? 0;
+    }
   }
 }
 
@@ -1170,6 +1253,56 @@ function toggleFavorite(detail) {
   renderResultsList();
 }
 
+function syncAlbumArtworkFromDetail(albumDetail) {
+  if (!albumDetail?.url || !albumDetail.image_url || !state.selectedBandDetail) {
+    return false;
+  }
+
+  const currentAlbum = state.selectedBandDetail.discography.find((item) => item.url === albumDetail.url);
+  if (!currentAlbum || currentAlbum.image_url === albumDetail.image_url) {
+    return false;
+  }
+
+  currentAlbum.image_url = albumDetail.image_url;
+  renderDiscography(state.selectedBandDetail);
+  if (state.expandedAlbumUrl === albumDetail.url) {
+    renderAlbumInspector();
+  }
+  return true;
+}
+
+async function fetchAlbumDetail(album) {
+  if (!album?.url) {
+    return null;
+  }
+
+  if (state.albumDetailsByUrl[album.url]) {
+    return state.albumDetailsByUrl[album.url];
+  }
+
+  if (state.albumDetailRequestsByUrl[album.url]) {
+    return state.albumDetailRequestsByUrl[album.url];
+  }
+
+  let requestPromise;
+  requestPromise = (async () => {
+    try {
+      const detail = await globalThis.ferrum.api.getAlbum(album.url);
+      const normalizedDetail = normalizeAlbumDetail(detail);
+      state.albumDetailsByUrl[album.url] = normalizedDetail;
+      syncAlbumArtworkFromDetail(normalizedDetail);
+      return normalizedDetail;
+    } finally {
+      if (state.albumDetailRequestsByUrl[album.url] === requestPromise) {
+        delete state.albumDetailRequestsByUrl[album.url];
+      }
+    }
+  })();
+
+  state.albumDetailRequestsByUrl[album.url] = requestPromise;
+  return requestPromise;
+}
+
 async function openAlbum(album) {
   if (!album?.url) {
     return;
@@ -1182,6 +1315,7 @@ async function openAlbum(album) {
     return;
   }
 
+  const selectedBandProfileUrl = state.selectedBandDetail?.profile_url ?? "";
   state.expandedAlbumUrl = album.url;
   state.expandedAlbumError = null;
   renderDiscography(state.selectedBandDetail);
@@ -1204,25 +1338,78 @@ async function openAlbum(album) {
   }
 
   try {
-    const detail = await globalThis.ferrum.api.getAlbum(album.url);
-    const normalizedDetail = normalizeAlbumDetail(detail);
-    state.albumDetailsByUrl[album.url] = normalizedDetail;
-    if (state.selectedBandDetail) {
-      const currentAlbum = state.selectedBandDetail.discography.find((item) => item.url === normalizedDetail.url);
-      if (currentAlbum && normalizedDetail.image_url) {
-        currentAlbum.image_url = normalizedDetail.image_url;
-      }
+    await fetchAlbumDetail(album);
+    if (state.selectedBandDetail?.profile_url === selectedBandProfileUrl) {
+      state.expandedAlbumError = null;
     }
-    state.expandedAlbumError = null;
   } catch (error) {
-    state.expandedAlbumError = {
-      url: album.url,
-      message: error?.message || "Failed to load album"
-    };
+    if (state.selectedBandDetail?.profile_url === selectedBandProfileUrl) {
+      state.expandedAlbumError = {
+        url: album.url,
+        message: error?.message || "Failed to load album"
+      };
+    }
   } finally {
-    state.expandedAlbumLoadingUrl = null;
-    renderDiscography(state.selectedBandDetail);
-    closeTaskLoading();
+    if (state.selectedBandDetail?.profile_url === selectedBandProfileUrl) {
+      state.expandedAlbumLoadingUrl = null;
+      renderDiscography(state.selectedBandDetail);
+      closeTaskLoading();
+    }
+  }
+}
+
+async function startAlbumCoverPrefetch(detail) {
+  if (!detail?.profile_url) {
+    stopAlbumCoverPrefetch();
+    return;
+  }
+
+  const pendingAlbums = getFilteredDiscographyAlbums(detail).filter((album) => album.url && !album.image_url);
+  if (pendingAlbums.length === 0) {
+    stopAlbumCoverPrefetch();
+    return;
+  }
+
+  const taskToken = state.albumCoverPrefetch.token + 1;
+  state.albumCoverPrefetch = {
+    token: taskToken,
+    bandProfileUrl: detail.profile_url,
+    active: true,
+    total: pendingAlbums.length,
+    completed: 0,
+    currentTitle: pendingAlbums[0]?.title || "cover"
+  };
+  renderAlbumCoverPrefetchProgress();
+
+  for (const [index, album] of pendingAlbums.entries()) {
+    if (!isAlbumCoverPrefetchTaskCurrent(taskToken, detail.profile_url)) {
+      return;
+    }
+
+    state.albumCoverPrefetch.currentTitle = album.title || "cover";
+    state.albumCoverPrefetch.completed = index;
+    renderAlbumCoverPrefetchProgress();
+
+    try {
+      await fetchAlbumDetail(album);
+    } catch {
+      // Keep the queue moving even if one album fails.
+    }
+
+    if (!isAlbumCoverPrefetchTaskCurrent(taskToken, detail.profile_url)) {
+      return;
+    }
+
+    state.albumCoverPrefetch.completed = index + 1;
+    renderAlbumCoverPrefetchProgress();
+
+    if (index < pendingAlbums.length - 1) {
+      await wait(2000);
+    }
+  }
+
+  if (isAlbumCoverPrefetchTaskCurrent(taskToken, detail.profile_url)) {
+    stopAlbumCoverPrefetch();
   }
 }
 
@@ -1437,6 +1624,7 @@ async function refreshSelectedBandFromEndpoint() {
     return;
   }
 
+  stopAlbumCoverPrefetch();
   presentTaskLoading("Refreshing band", `Fetching fresh data for ${detail.name || "selected band"}...`);
   try {
     await globalThis.ferrum.api.clearBandCache(detail.profile_url);
@@ -1563,6 +1751,7 @@ async function submitSearch() {
   state.selectedBandSummary = null;
   state.selectedBandDetail = null;
   state.selectedBandFilter = null;
+  stopAlbumCoverPrefetch();
   showDetailPlaceholder("Band details live here", "Pick a result to inspect line-up context, metadata and discography.");
   setSearching(true);
   state.results = [];

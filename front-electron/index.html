@@ -653,6 +653,33 @@
         margin-bottom: 12px;
       }
 
+      .albumCoverPrefetchProgress {
+        margin-bottom: 14px;
+        display: grid;
+        gap: 8px;
+      }
+
+      .albumCoverPrefetchLabel {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .albumCoverPrefetchBar {
+        height: 10px;
+        border-radius: 999px;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      .albumCoverPrefetchBar > div {
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, var(--accent), rgba(255, 255, 255, 0.78));
+        transition: width 180ms ease;
+      }
+
       .sectionTitle {
         font-size: 22px;
         font-weight: 900;
