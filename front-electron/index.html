@@ -660,11 +660,12 @@
         color: var(--muted);
         font-size: 13px;
         line-height: 1.45;
+        padding-left: 6px;
       }
 
       .albumCoverPrefetchBar {
         height: 10px;
-        border-radius: 999px;
+        border-radius: 0;
         overflow: hidden;
         border: 1px solid var(--line);
         background: rgba(255, 255, 255, 0.05);
@@ -672,7 +673,7 @@
 
       .albumCoverPrefetchBar > div {
         height: 100%;
-        border-radius: inherit;
+        border-radius: 0;
         background: linear-gradient(
           90deg,
           var(--accent),
