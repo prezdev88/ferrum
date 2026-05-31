@@ -1046,7 +1046,7 @@ function createJewelcaseNode(album, options = {}) {
     coverImage.alt = album.title || "Album cover";
     coverImage.loading = "eager";
     coverImage.style.cssText =
-      "width:calc(100% - 1px);height:calc(100% - 1px);object-fit:cover;box-shadow:0 0 8px #0004;background:#222;";
+      "width:calc(100% - 1px);height:calc(100% - 1px);object-fit:contain;box-shadow:0 0 8px #0004;background:#222;";
     frame.appendChild(coverImage);
   } else {
     frame.appendChild(createCompactDiscNode(coverSize));
