@@ -20,6 +20,7 @@
         --accent-soft: rgba(74, 144, 255, 0.18);
         --shadow: 0 30px 100px rgba(0, 0, 0, 0.55);
         --favorite-logo-opacity: 0.12;
+        --album-card-min-width: 190px;
       }
 
       body.ferrum-light {
@@ -696,7 +697,10 @@
 
       .albumList {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+        grid-template-columns: repeat(
+          auto-fill,
+          minmax(var(--album-card-min-width), 1fr)
+        );
         align-content: start;
         gap: 12px;
         width: 100%;
@@ -1362,6 +1366,26 @@
                 step="1"
               />
               <div class="settingsValue" id="favoriteLogoOpacityValue">0%</div>
+            </div>
+          </div>
+          <div class="settingsRow">
+            <div class="settingsLabelBlock">
+              <div class="settingsLabel">Disc zoom</div>
+              <div class="settingsSubtle">
+                Adjust album size in discography. You can also use Ctrl + mouse
+                wheel.
+              </div>
+            </div>
+            <div class="settingsInlineControl">
+              <input
+                class="settingsSlider"
+                id="albumGridSizeRange"
+                type="range"
+                min="140"
+                max="320"
+                step="1"
+              />
+              <div class="settingsValue" id="albumGridSizeValue">190px</div>
             </div>
           </div>
           <div class="settingsRow">

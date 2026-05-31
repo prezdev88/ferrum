@@ -64,6 +64,9 @@ function loadSettings() {
       ? Math.max(0, Math.min(100, Math.round(Number(payload.favorite_logo_opacity))))
       : 0,
     favoriteImageOnly: Boolean(payload.favorite_image_only),
+    albumGridSize: Number.isFinite(Number(payload.album_grid_size))
+      ? Math.max(140, Math.min(320, Math.round(Number(payload.album_grid_size))))
+      : 190,
     albumTypeColors,
     favoriteBands: loadFavorites()
   };
@@ -92,6 +95,9 @@ function saveSettings(settings) {
       ? Math.max(0, Math.min(100, Math.round(Number(nextSettings.favoriteLogoOpacity))))
       : 0,
     favorite_image_only: Boolean(nextSettings.favoriteImageOnly),
+    album_grid_size: Number.isFinite(Number(nextSettings.albumGridSize))
+      ? Math.max(140, Math.min(320, Math.round(Number(nextSettings.albumGridSize))))
+      : 190,
     album_type_colors: Object.fromEntries(
       Object.entries(albumTypeColors).sort((a, b) => a[0].localeCompare(b[0], undefined, { sensitivity: "base" }))
     )

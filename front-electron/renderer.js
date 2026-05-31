@@ -114,6 +114,8 @@ const elements = {
   providerSelect: document.getElementById("providerSelect"),
   favoriteLogoOpacityRange: document.getElementById("favoriteLogoOpacityRange"),
   favoriteLogoOpacityValue: document.getElementById("favoriteLogoOpacityValue"),
+  albumGridSizeRange: document.getElementById("albumGridSizeRange"),
+  albumGridSizeValue: document.getElementById("albumGridSizeValue"),
   favoriteImageOnlyCheckbox: document.getElementById(
     "favoriteImageOnlyCheckbox",
   ),
@@ -143,6 +145,7 @@ const state = {
     musicProvider: "youtube_music",
     favoriteLogoOpacity: 0,
     favoriteImageOnly: false,
+    albumGridSize: 190,
     albumTypeColors: {},
     favoriteBands: [],
   },
@@ -394,6 +397,7 @@ function persistSettings() {
     musicProvider: state.settings.musicProvider,
     favoriteLogoOpacity: state.settings.favoriteLogoOpacity,
     favoriteImageOnly: state.settings.favoriteImageOnly,
+    albumGridSize: state.settings.albumGridSize,
     albumTypeColors: state.settings.albumTypeColors,
     favoriteBands: state.settings.favoriteBands,
   });
@@ -405,6 +409,29 @@ function clampFavoriteLogoOpacity(value) {
     return 0;
   }
   return Math.max(0, Math.min(100, Math.round(numericValue)));
+}
+
+function clampAlbumGridSize(value) {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) {
+    return 190;
+  }
+  return Math.max(140, Math.min(320, Math.round(numericValue)));
+}
+
+function applyAlbumGridSize() {
+  const size = clampAlbumGridSize(state.settings.albumGridSize);
+  state.settings.albumGridSize = size;
+  document.documentElement.style.setProperty(
+    "--album-card-min-width",
+    `${size}px`,
+  );
+  if (elements.albumGridSizeRange) {
+    elements.albumGridSizeRange.value = String(size);
+  }
+  if (elements.albumGridSizeValue) {
+    elements.albumGridSizeValue.textContent = `${size}px`;
+  }
 }
 
 function applyFavoriteLogoOpacity() {
@@ -1146,6 +1173,7 @@ function renderBandDetail(detail) {
   );
 
   const discographyFilter = document.getElementById("discographyFilter");
+  const discographyList = document.getElementById("discographyList");
   const filters = resolveDiscographyFilters(detail.discography);
   for (const value of filters) {
     const option = document.createElement("option");
@@ -1167,6 +1195,27 @@ function renderBandDetail(detail) {
     stopAlbumCoverPrefetch();
     void startAlbumCoverPrefetch(detail);
   });
+
+  discographyList?.addEventListener(
+    "wheel",
+    (event) => {
+      if (!event.ctrlKey) {
+        return;
+      }
+      event.preventDefault();
+      const direction = Math.sign(event.deltaY);
+      if (direction === 0) {
+        return;
+      }
+      state.settings.albumGridSize = clampAlbumGridSize(
+        state.settings.albumGridSize - direction * 14,
+      );
+      applyAlbumGridSize();
+      persistSettings();
+      renderDiscography(detail);
+    },
+    { passive: false },
+  );
 
   renderDiscography(detail);
   renderAlbumInspector();
@@ -1225,6 +1274,10 @@ function renderDiscography(detail) {
 
   for (const album of albums) {
     const button = document.createElement("button");
+    const cardCoverSize = Math.max(
+      88,
+      Math.min(176, Math.round(state.settings.albumGridSize * 0.54)),
+    );
     button.type = "button";
     button.className = "albumRow";
     if (state.expandedAlbumUrl === album.url) {
@@ -1247,8 +1300,8 @@ function renderDiscography(detail) {
     `;
     const artworkSlot = button.firstElementChild;
     const jewelcaseNode = createJewelcaseNode(album, {
-      coverSize: 102,
-      spineWidth: 12,
+      coverSize: cardCoverSize,
+      spineWidth: Math.max(12, Math.round(cardCoverSize * 0.145)),
       frameInset: 0.972,
       fluidWidth: true,
     });
@@ -1855,6 +1908,7 @@ function openSettingsModal() {
   elements.providerSelect.value =
     state.settings.musicProvider || "youtube_music";
   applyFavoriteLogoOpacity();
+  applyAlbumGridSize();
   if (elements.favoriteImageOnlyCheckbox) {
     elements.favoriteImageOnlyCheckbox.checked = Boolean(
       state.settings.favoriteImageOnly,
@@ -1926,6 +1980,9 @@ async function bootstrap() {
     favoriteImageOnly: Boolean(
       settings?.favoriteImageOnly ?? settings?.favorite_image_only ?? false,
     ),
+    albumGridSize: clampAlbumGridSize(
+      settings?.albumGridSize ?? settings?.album_grid_size ?? 190,
+    ),
     albumTypeColors:
       settings?.albumTypeColors ?? settings?.album_type_colors ?? {},
     favoriteBands: Array.isArray(
@@ -1938,6 +1995,7 @@ async function bootstrap() {
   };
   applyTheme();
   applyFavoriteLogoOpacity();
+  applyAlbumGridSize();
   setText(elements.backendUrl, `url: ${config.backendUrl}`);
   renderResultsList();
 }
@@ -2063,6 +2121,27 @@ elements.favoriteLogoOpacityRange?.addEventListener("change", () => {
   );
   applyFavoriteLogoOpacity();
   persistSettings();
+});
+
+elements.albumGridSizeRange?.addEventListener("input", () => {
+  state.settings.albumGridSize = clampAlbumGridSize(
+    elements.albumGridSizeRange.value,
+  );
+  applyAlbumGridSize();
+  if (state.selectedBandDetail) {
+    renderDiscography(state.selectedBandDetail);
+  }
+});
+
+elements.albumGridSizeRange?.addEventListener("change", () => {
+  state.settings.albumGridSize = clampAlbumGridSize(
+    elements.albumGridSizeRange.value,
+  );
+  applyAlbumGridSize();
+  persistSettings();
+  if (state.selectedBandDetail) {
+    renderDiscography(state.selectedBandDetail);
+  }
 });
 
 elements.favoriteImageOnlyCheckbox?.addEventListener("change", () => {
