@@ -62,7 +62,7 @@ public class JsonFileCacheStore implements CacheStorePort {
             CacheEntry<T> entry = new CacheEntry<>(
                     descriptor.key(),
                     cachedAt,
-                    cachedAt.plus(descriptor.ttl()),
+                    descriptor.ttl().isNegative() ? Instant.MAX : cachedAt.plus(descriptor.ttl()),
                     payload
             );
 
